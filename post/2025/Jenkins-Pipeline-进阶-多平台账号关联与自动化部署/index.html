@@ -1,0 +1,496 @@
+<!doctype html><html lang=zh-hans><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>Jenkins Pipeline 进阶：多平台账号关联与自动化部署 | 徐同学的博客</title><meta property="og:title" content="Jenkins Pipeline 进阶：多平台账号关联与自动化部署 - 徐同学的博客"><meta property="og:type" content="article"><meta property="article:published_time" content='2025-01-26T00:00:00+08:00'><meta property="article:modified_time" content='2025-01-26T00:00:00+08:00'><meta name=Keywords content="kubernetes,k8s,linux,运维,数据库,mysql,监控,CI/CD,jenkins,docker,go语言,技术博客"><meta name=description content="jenkins shared library 实践分享"><meta name=author content="徐同学"><meta property="og:url" content="https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/"><link rel="shortcut icon" href=/favicon.ico type=image/x-icon><link rel=icon href=/favicon.png type=image/png><link rel="alternate icon" href=/favicon.png type=image/svg+xml><link rel=stylesheet href=/css/normalize.css><link rel=stylesheet href=/css/style.css><script type=text/javascript src=//cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.min.js></script><link href=https://cdn.bootcdn.net/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css rel=stylesheet><link rel=stylesheet href=/css/douban.css><link rel=stylesheet href=/css/other.css></head><body><header id=header class=clearfix><div class=container><div class=col-group><div class=site-name><a id=logo href=https://blogs.xwnlearn.cn/>徐同学的博客</a><p class=description>宝剑锋从磨砺出，梅花香自苦寒来✌️</p></div><div><nav id=nav-menu class=clearfix><a class=current href=https://blogs.xwnlearn.cn/>首页</a>
+<a href=https://blogs.xwnlearn.cn/archives/ title=归档>归档</a>
+<a href=https://blogs.xwnlearn.cn/about/ title=关于>关于</a></nav></div></div></div></header><div id=body><div class=container><div class=col-group><div class=col-8 id=main><div class=res-cons><style type=text/css>.post-toc{position:fixed;width:200px;margin-left:-210px;padding:5px 10px;font-family:Athelas,STHeiti,Microsoft Yahei,serif;font-size:12px;border:1px solid rgba(0,0,0,7%);border-radius:5px;background-color:rgba(255,255,255,.98);background-clip:padding-box;-webkit-box-shadow:1px 1px 2px rgba(0,0,0,.125);box-shadow:1px 1px 2px rgba(0,0,0,.125);word-wrap:break-word;white-space:nowrap;-webkit-box-sizing:border-box;box-sizing:border-box;z-index:999;cursor:pointer;max-height:70%;overflow-y:auto;overflow-x:hidden}.post-toc .post-toc-title{width:100%;margin:0 auto;font-size:20px;font-weight:400;text-transform:uppercase;text-align:center}.post-toc .post-toc-content{font-size:15px}.post-toc .post-toc-content>nav>ul{margin:10px 0}.post-toc .post-toc-content ul{padding-left:20px;list-style:square;margin:.5em;line-height:1.8em}.post-toc .post-toc-content ul ul{padding-left:15px;display:none}@media print,screen and (max-width:1057px){.post-toc{display:none}}</style><div class=post-toc style=position:absolute;top:188px><h2 class=post-toc-title>文章目录</h2><div class=post-toc-content><nav id=TableOfContents><ul><li><a href=#引言>引言</a></li><li><a href=#架构图>架构图</a></li><li><a href=#jenkins-pipeline-cicd>Jenkins Pipeline CI/CD</a><ul><li></li><li><a href=#jenkins-pipeline-ci>Jenkins Pipeline CI</a></li><li><a href=#jenkins-pipeline-cd>Jenkins Pipeline CD</a></li></ul></li><li><a href=#钉钉与openldap的联动>钉钉与OpenLDAP的联动</a></li><li><a href=#总结>总结</a></li></ul></nav></div></div><script type=text/javascript>$(document).ready(function(){if(e=$(".post-toc"),e.length){t=$("#main").offset().left,t<220&&e.css({width:t-10,"margin-left":0-t});var e,t,n=e.offset().top-20,s={start:{position:"absolute",top:n},process:{position:"fixed",top:20}};$(window).scroll(function(){var t=$(window).scrollTop();t<n?e.css(s.start):e.css(s.process)})}$("#TableOfContents").children().length<1&&$(".post-toc").remove()})</script><article class=post><header><h1 class=post-title>Jenkins Pipeline 进阶：多平台账号关联与自动化部署</h1></header><time datetime=2025-01-25T16:00:00Z class="post-meta meta-date dt-published">2025年1月26日</time><div class="post-meta meta-category"><span>&nbsp;|</span>
+<a href=/categories/CI/CD target=_blank>CI/CD</a></div><div class=clear style=display:none><div class=toc-article><div class=toc-title>文章目录</div></div></div><div class=post-content><h1 id=jenkins-pipeline-进阶多平台账号关联与自动化部署>Jenkins Pipeline 进阶：多平台账号关联与自动化部署</h1><h2 id=引言>引言</h2><p>​ 在当今快速迭代的软件开发环境中，持续集成和持续交付 (CI/CD) 已成为不可或缺的实践。Jenkins 作为一款开源的自动化服务器，凭借其强大的插件生态系统和灵活的 Pipeline 功能，成为 CI/CD 领域的佼佼者。本文将介绍如何使用 Jenkins Pipeline 实现 CI/CD，并重点讲解如何将钉钉账号与 OpenLDAP 联动，以及如何实现 Jenkins、GitLab、Harbor 和禅道等多平台的账号关联和集成。</p><h2 id=架构图>架构图</h2><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/992e5f9d6f5b93fcbca18045fd889583.png><img class=mx-auto alt=image-20250121095804587 src=https://blog.xwnlearn.cn/api/v1/look_images/992e5f9d6f5b93fcbca18045fd889583.png></a></p><h2 id=jenkins-pipeline-cicd>Jenkins Pipeline CI/CD</h2><p>​ Jenkins Pipeline 是一种将构建、测试和部署等步骤以代码形式定义的机制。它使用 Groovy DSL 语法，可以将整个 CI/CD 流程编写成一个脚本文件，方便版本控制和重复使用。</p><h4 id=部署>部署</h4><p>​ 如果还没有部署Jenkins，可以使用下面的docker-compose.yml配置快速拉起一个Jenkins</p><p>docker-compose.yml</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#7ee787>version</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>&#39;3.7&#39;</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>services</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>jenkins</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>image</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>jenkins/jenkins:lts</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>container_name</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>jenkins</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>environment</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>TZ=Asia/Shanghai</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>volumes</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>/data/jenkins/jenkins_home:/var/jenkins_home</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>/var/run/docker.sock:/var/run/docker.sock</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>/usr/bin/docker:/usr/bin/docker</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>ports</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>&#34;8080:8080&#34;</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>&#34;50000:500000&#34;</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>expose</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>&#34;8080&#34;</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>&#34;50000&#34;</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>privileged</span>:<span style=color:#6e7681> </span><span style=color:#79c0ff>true</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>user</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>root</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>restart</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>always</span><span style=color:#6e7681>
+</span></span></span></code></pre></td></tr></table></div></div><h4 id=配置共享库>配置共享库</h4><p><code>系统管理</code> -><code>系统配置</code>-> <code>Global Trusted Pipeline Libraries</code></p><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/ae29ffba9732c5dd79ad6c107fd9d9d1.jpg><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/ae29ffba9732c5dd79ad6c107fd9d9d1.jpg></a></p><h3 id=jenkins-pipeline-ci>Jenkins Pipeline CI</h3><h4 id=ci代码>CI代码</h4><p>​ 下面是使用maven构建linux/win平台docker镜像的流程</p><pre tabindex=0><code>@Library(&#39;jenkins-shared-library@main&#39;) _
+// 引入 Jenkins 共享库，名称为 &#39;jenkins-shared-library&#39;，使用 &#39;main&#39; 分支。
+
+pipeline {
+    agent any
+    // 指定 Pipeline 在任何可用的 Jenkins Agent 上运行。
+
+    parameters {
+        string(name: &#39;BRANCH_NAME&#39;, defaultValue: &#39;master&#39;, description: &#39;Git分支名称&#39;)
+        // 定义一个字符串参数，用于指定 Git 分支名称，默认值为 &#39;master&#39;。
+
+        string(name: &#39;ZENTAO_REPOPATH&#39;, defaultValue: &#39;&#39;, description: &#39;gitlab 项目链接&#39;)
+        // 定义一个字符串参数，用于指定 GitLab 项目的 URL。
+
+        string(name: &#39;ZENTAO_ACCOUNT&#39;, defaultValue: &#39;&#39;, description: &#39;zentao 用户&#39;)
+        // 定义一个字符串参数，用于指定禅道（Zentao）的用户名。
+
+        choice(name: &#39;BUILD_PLATFORM&#39;, choices: [&#39;linux&#39;, &#39;windows&#39;], description: &#39;构建平台&#39;)
+        // 定义一个选择参数，用于指定构建平台，可选值为 &#39;linux&#39; 或 &#39;windows&#39;。
+    }
+
+    environment {
+        CURRENT_DATE = sh(script: &#34;date +&#39;%Y%m%d%H%M%S&#39;&#34;, returnStdout: true).trim()
+        // 定义一个环境变量 CURRENT_DATE，值为当前日期时间，格式为 &#39;YYYYMMDDHHMMSS&#39;。
+
+        BUILD_COMMIT = &#39;&#39;
+        // 定义一个环境变量 BUILD_COMMIT，初始值为空，后续会存储 Git 提交 ID。
+
+        ImageName = &#39;&#39;
+        // 定义一个环境变量 ImageName，初始值为空，后续会存储 Docker 镜像名称。
+
+        GITLAB_GROUP = &#39;&#39;
+        // 定义一个环境变量 GITLAB_GROUP，初始值为空，后续会存储 GitLab 项目组名称。
+
+        GITLAB_PROJECT = &#39;&#39;
+        // 定义一个环境变量 GITLAB_PROJECT，初始值为空，后续会存储 GitLab 项目名称。
+    }
+
+    stages {
+        stage(&#34;提取项目和项目名&#34;) {
+            steps {
+                script {
+                    def res = getGitLabGroupAndProject.extractGitLabInfo(params.ZENTAO_REPOPATH)
+                    // 调用共享库中的方法 extractGitLabInfo，从 GitLab 项目 URL 中提取项目组和项目名称。
+
+                    GITLAB_GROUP = res.group
+                    // 将提取到的 GitLab 项目组名称赋值给环境变量 GITLAB_GROUP。
+
+                    GITLAB_PROJECT = res.project
+                    // 将提取到的 GitLab 项目名称赋值给环境变量 GITLAB_PROJECT。
+                }
+            }
+        }
+
+        stage(&#34;构建邮件通知&#34;) {
+            steps {
+                script {
+                    // 触发构建消息。
+                }
+            }
+        }
+
+        stage(&#39;拉取代码并构建&#39;) {
+            agent {
+                docker {
+                    image &#34;${GlobalVars.MavenBuildImage}&#34;
+                    // 使用共享库中定义的 Maven 构建镜像。
+
+                    args &#39;-v /data/.m2:/root/.m2 -v /data/jar-package:/data/jar-package&#39;
+                    // 挂载宿主机的 Maven 缓存目录和构建产物目录到容器中。
+
+                    reuseNode true
+                    // 重用当前节点，避免切换到其他节点。
+                }
+            }
+            steps {
+                checkout scmGit(
+                    branches: [[name: &#34;*/${params.BRANCH_NAME}&#34;]],
+                    // 指定要拉取的分支名称，使用参数 BRANCH_NAME。
+
+                    extensions: [],
+                    // 无额外的 Git 扩展配置。
+
+                    userRemoteConfigs: [[
+                        credentialsId: &#34;${GlobalVars.GitLabcredentialsId}&#34;,
+                        // 使用共享库中定义的 GitLab 凭据 ID。
+
+                        url: &#34;https://${GlobalVars.GitlabUrl}/${GITLAB_GROUP}/${GITLAB_PROJECT}.git&#34;
+                        // 指定 GitLab 项目的 URL。
+                    ]]
+                )
+                script {
+                    sh &#39;mvn -B -DskipTests clean package&#39;
+                    // 使用 Maven 进行构建，跳过测试。
+
+                    sh &#34;cp ruoyi-admin/target/ruoyi-admin.jar /data/jar-package/${GITLAB_GROUP}-${GITLAB_PROJECT}-${CURRENT_DATE}.jar&#34;
+                    // 将构建产物（JAR 文件）复制到宿主机的指定目录，并重命名。
+                }
+            }
+        }
+
+        stage(&#39;保存构建产物&#39;) {
+            steps {
+                stash includes: &#39;ruoyi-admin/target/ruoyi-admin.jar&#39;, name: &#39;jar-package&#39;
+                // 将构建产物（JAR 文件）保存为 Jenkins 的 stash，供后续阶段使用。
+            }
+        }
+
+        stage(&#39;构建信息&#39;) {
+            steps {
+                script {
+                    wrap([$class: &#39;BuildUser&#39;]) {
+                        // 使用 Jenkins 的 BuildUser 插件获取构建用户信息。
+
+                        BUILD_USER = &#34;${ZENTAO_ACCOUNT}&#34;
+                        // 将禅道用户赋值给环境变量 BUILD_USER。
+
+                        BUILD_NAME = &#34;${GITLAB_GROUP}/${GITLAB_PROJECT}&#34;
+                        // 将项目组和项目名称拼接后赋值给环境变量 BUILD_NAME。
+
+                        BUILD_BRANCH = &#34;${BRANCH_NAME}&#34;
+                        // 将分支名称赋值给环境变量 BUILD_BRANCH。
+
+                        BUILD_COMMIT = &#34;${getCommitId()}&#34;
+                        // 调用共享库中的方法 getCommitId，获取当前 Git 提交 ID，并赋值给环境变量 BUILD_COMMIT。
+
+                        BUILD_PLATFORM = &#34;${params.BUILD_PLATFORM}&#34;
+                        // 将构建平台赋值给环境变量 BUILD_PLATFORM。
+                    }
+                    currentBuild.description = &#34;&#34;&#34;构建用户: ${BUILD_USER}\n构建项目: ${BUILD_NAME}\n构建分支: ${BUILD_BRANCH}\n构建平台: ${BUILD_PLATFORM}\nMessageID: ${BUILD_COMMIT}
+                    &#34;&#34;&#34;
+                    // 设置当前构建的描述信息，包含构建用户、项目、分支、平台和提交 ID。
+                }
+            }
+        }
+
+        stage(&#39;构建镜像名称&#39;) {
+            steps {
+                script {
+                    ImageName = &#34;${GlobalVars.HarborUrl}/${GITLAB_GROUP}/${GITLAB_PROJECT}:${CURRENT_DATE}-${BUILD_COMMIT}-${params.BUILD_PLATFORM}&#34;
+                    // 根据 Harbor 地址、项目组、项目名称、日期、提交 ID 和构建平台生成 Docker 镜像名称。
+                }
+            }
+        }
+
+        stage(&#39;打包镜像&#39;) {
+            steps {
+                script {
+                    if (params.BUILD_PLATFORM == &#39;linux&#39;) {
+                        buildDockerImage.LinuxRuoyiBuild(ImageName)
+                        // 如果构建平台是 Linux，调用共享库中的方法 LinuxRuoyiBuild 打包 Docker 镜像。
+                    } else if (params.BUILD_PLATFORM == &#39;windows&#39;) {
+                        node(&#39;win-agent&#39;) {
+                            unstash &#39;jar-package&#39;
+                            // 如果构建平台是 Windows，切换到 Windows 节点，并恢复之前保存的构建产物。
+
+                            buildDockerImage.WindowsRuoyiBuild(ImageName)
+                            // 调用共享库中的方法 WindowsRuoyiBuild 打包 Docker 镜像。
+                        }
+                    }
+                }
+            }
+        }
+
+        stage(&#39;推送镜像&#39;) {
+            steps {
+                script {
+                    if (params.BUILD_PLATFORM == &#39;linux&#39;) {
+                        withDockerRegistry(credentialsId: &#34;${GlobalVars.HarborcredentialsId}&#34;, url: &#34;https://${GlobalVars.HarborUrl}&#34;) {
+                            sh &#34;docker push ${ImageName}&#34;
+                            // 如果构建平台是 Linux，推送 Docker 镜像到 Harbor。
+
+                            sh &#34;docker rmi ${ImageName}&#34;
+                            // 删除本地 Docker 镜像以释放空间。
+                        }
+                    } else if (params.BUILD_PLATFORM == &#39;windows&#39;) {
+                        node(&#39;win-agent&#39;) {
+                            withDockerRegistry(credentialsId: &#34;${GlobalVars.HarborcredentialsId}&#34;, url: &#34;https://${GlobalVars.HarborUrl}&#34;) {
+                                bat &#34;docker push ${ImageName}&#34;
+                                // 如果构建平台是 Windows，推送 Docker 镜像到 Harbor。
+
+                                bat &#34;docker rmi ${ImageName}&#34;
+                                // 删除本地 Docker 镜像以释放空间。
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+            // 无论构建成功与否，始终清理工作空间。
+        }
+        success {
+            script {
+                // 构建成功时发送通知。
+            }
+        }
+        unsuccessful {
+            script {
+                // 构建失败时发送通知。
+            }
+        }
+    }
+}
+</code></pre><p>该 Jenkins Pipeline 脚本实现了一个完整的 CI 流程</p><ol><li><strong>参数化构建</strong>：支持动态指定 Git 分支、GitLab 项目、禅道用户和构建平台。</li><li><strong>代码拉取与构建</strong>：从 GitLab 拉取代码并使用 Maven 进行构建。</li><li><strong>镜像打包与推送</strong>：根据构建平台（Linux 或 Windows）打包 Docker 镜像并推送到 Harbor。</li><li><strong>构建信息记录</strong>：记录构建用户、项目、分支、平台和提交 ID 等信息。</li><li><strong>通知与清理</strong>：支持构建成功或失败时发送通知，并始终清理工作空间。</li></ol><p>通过共享库的使用，脚本的逻辑更加简洁和模块化，便于维护和扩展。</p><h4 id=创建构建流程>创建构建流程</h4><p>写好CI流程，下面在Jenkins添加构建流程</p><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/9ed970388aa04bdd1bef3d2b2aa3aadd.jpg><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/9ed970388aa04bdd1bef3d2b2aa3aadd.jpg></a></p><h4 id=基于禅道关联jenkins任务>基于禅道关联Jenkins任务</h4><p>禅道平台配置关联jenkins，方便用户调用触发</p><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/746b9addb459c43b62b428772f4d5655.png><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/746b9addb459c43b62b428772f4d5655.png></a></p><h3 id=jenkins-pipeline-cd>Jenkins Pipeline CD</h3><h4 id=cd-代码>CD 代码</h4><pre tabindex=0><code>@Library(&#39;jenkins-shared-library@main&#39;) _
+// 引入 Jenkins 共享库，名称为 &#39;jenkins-shared-library&#39;，使用 &#39;main&#39; 分支。
+
+pipeline {
+    agent any
+    // 指定 Pipeline 在任何可用的 Jenkins Agent 上运行。
+
+    parameters {
+        string(name: &#39;SSH_USER&#39;, defaultValue: &#39;root&#39;, description: &#39;SSH User&#39;)
+        // 定义一个字符串参数，用于指定 SSH 用户，默认值为 &#39;root&#39;。
+
+        string(name: &#39;TARGET_IP&#39;, defaultValue: &#39;&#39;, description: &#39;部署机器 IP 地址&#39;)
+        // 定义一个字符串参数，用于指定目标机器的 IP 地址。
+
+        string(name: &#39;DOCKER_IMAGE&#39;, defaultValue: &#39;&#39;, description: &#39;运行服务镜像地址&#39;)
+        // 定义一个字符串参数，用于指定 Docker 镜像的名称。
+
+        string(name: &#39;IMAGE_VERSION&#39;, defaultValue: &#39;&#39;, description: &#39;运行服务镜像版本号&#39;)
+        // 定义一个字符串参数，用于指定 Docker 镜像的版本号。
+
+        string(name: &#39;SERVICE_NAME&#39;, defaultValue: &#39;&#39;, description: &#39;容器运行名称&#39;)
+        // 定义一个字符串参数，用于指定 Docker 容器的名称。
+
+        string(name: &#39;PORT_MAPPING&#39;, defaultValue: &#39;&#39;, description: &#39;端口映射,eg: 8080:8080&#39;)
+        // 定义一个字符串参数，用于指定 Docker 容器的端口映射。
+
+        string(name: &#39;ENV_VARIABLES&#39;, defaultValue: &#39;&#39;, description: &#39;环境变量,eg: KEY=&#34;VALUE&#34;,KEY2=&#34;VALUE2&#34;&#39;)
+        // 定义一个字符串参数，用于指定 Docker 容器的环境变量。
+    }
+
+    environment {
+        SEND_BUILD_USER_EMAIL = &#39;&#39;
+        // 定义一个环境变量 SEND_BUILD_USER_EMAIL，初始值为空，后续会存储构建用户的邮箱。
+    }
+
+    stages {
+        stage(&#39;获取参数&#39;) {
+            steps {
+                script {
+                    withBuildUser {
+                        SEND_BUILD_USER_EMAIL = env.BUILD_USER_EMAIL
+                        // 使用 Jenkins 的 BuildUser 插件获取构建用户的邮箱，并赋值给环境变量 SEND_BUILD_USER_EMAIL。
+                    }
+
+                    // 检查参数是否为空
+                    if (!params.SSH_USER?.trim()) {
+                        error &#34;SSH 用户不能为空！&#34;
+                        // 如果 SSH 用户为空，抛出错误并终止 Pipeline。
+                    }
+                    if (!params.TARGET_IP?.trim()) {
+                        error &#34;目标机器 IP 地址不能为空！&#34;
+                        // 如果目标机器 IP 地址为空，抛出错误并终止 Pipeline。
+                    }
+                    if (!params.SERVICE_NAME?.trim()) {
+                        error &#34;服务名称不能为空！&#34;
+                        // 如果服务名称为空，抛出错误并终止 Pipeline。
+                    }
+                    if (!params.DOCKER_IMAGE?.trim()) {
+                        error &#34;Docker 镜像名称不能为空！&#34;
+                        // 如果 Docker 镜像名称为空，抛出错误并终止 Pipeline。
+                    }
+                    if (!params.IMAGE_VERSION?.trim()) {
+                        error &#34;Docker 镜像版本号不能为空！&#34;
+                        // 如果 Docker 镜像版本号为空，抛出错误并终止 Pipeline。
+                    }
+                    if (!params.PORT_MAPPING?.trim()) {
+                        error &#34;端口映射不能为空！&#34;
+                        // 如果端口映射为空，抛出错误并终止 Pipeline。
+                    }
+                }
+            }
+        }
+
+        stage(&#39;部署服务&#39;) {
+            steps {
+                script {
+                    def envVariables = &#34;&#34;
+                    if (params.ENV_VARIABLES?.trim()) {
+                        def envList = params.ENV_VARIABLES.split(&#39;,&#39;)
+                        envVariables = envList.collect { envVar -&gt;
+                            &#34;-e ${envVar.trim()}&#34;
+                        }.join(&#39; &#39;)
+                        // 如果环境变量参数不为空，将其拆分为多个环境变量，并格式化为 Docker 命令中的 `-e` 参数。
+                    }
+
+                    def dockerCommand = &#34;&#34;
+                    withCredentials([usernamePassword(credentialsId: &#39;devops_harbor&#39;, passwordVariable: &#39;HARBOR_PASSWORD&#39;, usernameVariable: &#39;HARBOR_USERNAME&#39;)]) {
+                        // 使用 Jenkins 的 Credentials 插件获取 Harbor 仓库的用户名和密码。
+
+                        dockerCommand = &#34;&#34;&#34;
+                            docker login harbor.wuyinit.com -u $HARBOR_USERNAME -p $HARBOR_PASSWORD &amp;&amp;
+                            docker pull ${params.DOCKER_IMAGE}:${params.IMAGE_VERSION} &amp;&amp;
+                            docker stop ${params.SERVICE_NAME} || true &amp;&amp;
+                            docker rm ${params.SERVICE_NAME} || true &amp;&amp;
+                            docker run -itd --name ${params.SERVICE_NAME} -p ${params.PORT_MAPPING} ${envVariables} ${params.DOCKER_IMAGE}:${params.IMAGE_VERSION}
+                        &#34;&#34;&#34;
+                        // 构建 Docker 命令，包括：
+                        // 1. 登录 Harbor 仓库。
+                        // 2. 拉取指定版本的 Docker 镜像。
+                        // 3. 停止并删除已存在的同名容器。
+                        // 4. 启动新的容器，并指定名称、端口映射和环境变量。
+                    }
+
+                    sshagent([&#39;deploy-agent-key&#39;]) {
+                        // 使用 Jenkins 的 SSH Agent 插件，加载指定的 SSH 私钥（&#39;deploy-agent-key&#39;）。
+
+                        sh &#34;&#34;&#34;
+                        ssh -o StrictHostKeyChecking=no ${params.SSH_USER}@${params.TARGET_IP} &lt;&lt; &#39;EOF&#39;
+                        ${dockerCommand}
+EOF
+                        &#34;&#34;&#34;
+                        // 通过 SSH 连接到目标机器，并执行 Docker 命令。
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                // 构建成功时发送邮件通知。
+            }
+        }
+
+        unsuccessful {
+            script {
+                // 构建失败时发送邮件通知。
+            }
+        }
+    }
+}
+</code></pre><p>该 Jenkins Pipeline 脚本实现了一个完整的服务部署流程，包括：</p><ol><li><strong>参数化构建</strong>：支持动态指定 SSH 用户、目标机器 IP、Docker 镜像、版本号、服务名称、端口映射和环境变量。</li><li><strong>参数检查</strong>：确保所有必填参数不为空。</li><li><strong>服务部署</strong>：<ul><li>登录 Harbor 仓库并拉取 Docker 镜像。</li><li>停止并删除已存在的同名容器。</li><li>启动新的容器，并指定名称、端口映射和环境变量。</li></ul></li><li><strong>通知与清理</strong>：支持构建成功或失败时发送通知。</li></ol><p>通过共享库和 Jenkins 插件（如 Credentials、SSH Agent）的使用，脚本的逻辑更加简洁和模块化，便于维护和扩展。</p><h2 id=钉钉与openldap的联动>钉钉与OpenLDAP的联动</h2><p><a data-fancybox=gallery href=https://ldapdoc.eryajf.net/img/architecture.png><img class=mx-auto alt src=https://ldapdoc.eryajf.net/img/architecture.png></a></p><p>​ 为了实现统一身份认证，并基于现有的钉钉组织和人员信息，将Jenkins、GitLab、Harbor 和禅道等多平台的账号关联，我们可以使用 OpenLDAP 作为统一的用户认证中心。具体步骤如下：</p><ol><li>**配置 Go-Ldap-Admin 等服务：**将钉钉通讯录中的用户和组织结构同步到 OpenLDAP 服务器。</li><li><strong>配置各平台使用 OpenLDAP 认证：</strong> 在 Jenkins、GitLab、Harbor 和禅道的系统设置中，配置 LDAP 认证，并指定 OpenLDAP 服务器的地址、端口、Base DN 等信息。</li></ol><p>docker-compose参考，<a href=https://github.com/opsre/go-ldap-admin/blob/main/docs/docker-compose/docker-compose.yaml>详情查看</a></p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">46
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#7ee787>version</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>&#39;3&#39;</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>networks</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>go-ldap-admin</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>driver</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>bridge</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>services</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>go-ldap-admin</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>image</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>registry.cn-hangzhou.aliyuncs.com/eryajf/go-ldap-admin</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>container_name</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>go-ldap-admin</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>hostname</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>go-ldap-admin</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>restart</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>always</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>environment</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span><span style=color:#7ee787>WAIT_HOSTS</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>openldap:389</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>configs</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#7ee787>source</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>go_ldap_admin_config</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>        </span><span style=color:#7ee787>target</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>/app/config.yml</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>ports</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>8888</span>:<span style=color:#a5d6ff>8888</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>volumes</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>./data/go-ldap-admin:/app/data</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>depends_on</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>openldap</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>links</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>openldap:go-ldap-admin-openldap</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>networks</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>go-ldap-admin</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>openldap</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>image</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>registry.cn-hangzhou.aliyuncs.com/eryajf/openldap:1.4.1</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>container_name</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>go-ldap-admin-openldap</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>hostname</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>go-ldap-admin-openldap</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>restart</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>always</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>environment</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span><span style=color:#7ee787>TZ</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>Asia/Shanghai</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span><span style=color:#7ee787>LDAP_ORGANISATION</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>&#34;eryajf.net&#34;</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span><span style=color:#7ee787>LDAP_DOMAIN</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>&#34;eryajf.net&#34;</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span><span style=color:#7ee787>LDAP_ADMIN_PASSWORD</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>&#34;123456&#34;</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>command</span>:<span style=color:#6e7681> </span>[<span style=color:#6e7681> </span><span style=color:#a5d6ff>&#39;--copy-service&#39;</span><span style=color:#6e7681> </span>]<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>volumes</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>./data/openldap/database:/var/lib/ldap</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>./data/openldap/config:/etc/ldap/slapd.d</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>ports</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>389</span>:<span style=color:#a5d6ff>389</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>networks</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span>- <span style=color:#a5d6ff>go-ldap-admin</span><span style=color:#6e7681>
+</span></span></span></code></pre></td></tr></table></div></div><h2 id=总结>总结</h2><p>​ 通过 Jenkins Pipeline、OpenLDAP 和钉钉的集成，我们可以实现高效的 CI/CD 流程，并统一管理多平台的用户账号。本文提供的方案只是一个简单的示例，实际应用中可以根据具体需求进行调整和扩展。</p><p><strong>未来展望</strong></p><p>未来，我们可以探索以下方向：</p><ul><li>使用 Kubernetes 进行容器化部署，进一步提高资源利用率和部署效率。</li><li>引入代码质量分析工具，例如 SonarQube，提升代码质量。</li><li>实现自动化测试，例如使用 Selenium 进行 UI 自动化测试。</li></ul><p><strong>参考文献</strong></p><ul><li>Jenkins 官方文档: <a href=https://www.jenkins.io/doc/>https://www.jenkins.io/doc/</a></li><li>OpenLDAP 官方文档: <a href=https://www.openldap.org/doc/>https://www.openldap.org/doc/</a></li><li>钉钉开发者文档: <a href=https://open.dingtalk.com/document/orgapp-server>https://open.dingtalk.com/document/orgapp-server</a></li><li>Go-Ldap-Admin: <a href=https://ldapdoc.eryajf.net/>https://ldapdoc.eryajf.net/</a></li></ul></div><div class=post-archive><ul class=post-copyright><li><strong>原文作者：</strong><a rel=author href=https://blogs.xwnlearn.cn/>徐同学的博客</a></li><li style=word-break:break-all><strong>原文链接：</strong><a href=https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/>https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/</a></li><li><strong>版权声明：</strong>本作品采用<a rel=license href=https://creativecommons.org/licenses/by-nc-nd/4.0/>知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议</a>. 进行许可，非商业转载请注明出处（作者，原文链接），商业转载请联系作者获得授权。</li></ul></div><br><div class=post-archive><h2>相关文章</h2><ul class=listing><li><a href=/post/2023/jenkins%E9%85%8D%E7%BD%AEdocker%E9%95%9C%E5%83%8F%E6%89%93%E5%8C%85/>jenkins配置docker镜像打包</a></li></ul></div><div class="post-meta meta-tags"><ul class=clearfix><li><a href=/tags/Jenkins target=_blank>Jenkins</a></li><li><a href=/tags/Pipeline target=_blank>Pipeline</a></li></ul></div></article><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//yourdiscussshortname.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a><div class="post bg-white"><script src=https://utteranc.es/client.js repo="your github repo" issue-term=pathname theme=github-light crossorigin=anonymous async></script></div></div><footer id=footer><div>&copy; 2025 <a href=https://blogs.xwnlearn.cn/>徐同学的博客 By 徐同学</a>
+| <a rel=nofollow target=_blank href=http://beian.miit.gov.cn/>皖ICP备2020020988号-1</a> | <a href=https://gohugo.io/ target=_black rel=nofollow><span class=badge-subject>Powered by</span><span class="badge-value bg-blue">Hugo</span></a> | <a href=https://github.com/flysnow-org/maupassant-hugo target=_black><span class=badge-subject>Theme</span><span class="badge-value bg-yellowgreen">Maupassant</span></a></div></footer><script type=text/javascript>window.MathJax={tex2jax:{inlineMath:[["$","$"]],processEscapes:!0}}</script><script src='//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script><script src=//cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js></script><a id=rocket href=#top></a><script type=text/javascript src='/js/totop.js?v=0.0.0' async></script><style type=text/css>div.highlight{position:relative;margin:1em 0}.copy-code{display:none;position:absolute;top:4px;right:4px;color:rgba(255,255,255,.8);background:rgba(78,78,78,.8);border-radius:var(--radius);padding:0 5px;font:inherit;user-select:none;cursor:pointer;border:0;--radius:8px}div.highlight:hover .copy-code,pre:hover .copy-code{display:block}</style><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script><script src=/js/douban.js></script></div><div id=secondary><section class=widget><form id=search action=https://blogs.xwnlearn.cn/search method=get accept-charset=utf-8 target=_blank _lpchecked=1><input type=text name=q maxlength=20 placeholder=Search>
+<input type=hidden name=sitesearch value=https://blogs.xwnlearn.cn/>
+<button type=submit class="submit icon-search"></button></form></section><section class=widget><h3 class=widget-title>最近文章</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/ title="Jenkins Pipeline 进阶：多平台账号关联与自动化部署" target=_blank>Jenkins Pipeline 进阶：多平台账号关联与自动化部署</a></li><li><a href=https://blogs.xwnlearn.cn/post/2025/%E9%AB%98%E5%8F%AF%E7%94%A8harbor/ title=高可用harbor target=_blank>高可用harbor</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/%E5%BF%AB%E9%80%9F%E6%9E%84%E5%BB%BAZabbix7.0%E9%AB%98%E5%8F%AF%E7%94%A8%E7%9B%91%E6%8E%A7%E6%96%B9%E6%A1%88/ title=快速构建Zabbix7.0高可用监控方案 target=_blank>快速构建Zabbix7.0高可用监控方案</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/Microk8s%E9%83%A8%E7%BD%B2kubeflow/ title=Microk8s部署kubeflow target=_blank>Microk8s部署kubeflow</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/K8sGPT%E5%BA%94%E7%94%A8/ title=K8sGPT应用 target=_blank>K8sGPT应用</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/LocalAI-k8sgpt-operator/ title=LocalAI+k8sgpt-operator target=_blank>LocalAI+k8sgpt-operator</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/ApisixRoute%E9%85%8D%E7%BD%AE%E5%90%8E%E7%AB%AF%E8%B6%85%E6%97%B6%E6%97%B6%E9%97%B4/ title=ApisixRoute配置后端超时时间 target=_blank>ApisixRoute配置后端超时时间</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/apisix-ingress%E4%B8%8Eapisix%E7%9B%91%E6%8E%A7/ title=apisix-ingress与apisix监控 target=_blank>apisix-ingress与apisix监控</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Prometheus/ title=Prometheus target=_blank>Prometheus</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Telegram-bot/ title=Telegram-bot target=_blank>Telegram-bot</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/categories/>分类</a></h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/categories/CI/CD/>CI/CD (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Go%E8%AF%AD%E8%A8%80/>Go语言 (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Kubernetes/>Kubernetes (17)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Linux/>Linux (21)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件 (7)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库 (9)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E7%9B%91%E6%8E%A7/>监控 (5)</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/tags/>标签</a></h3><div class=tagcloud><a href=https://blogs.xwnlearn.cn/tags/Docker/>Docker</a>
+<a href=https://blogs.xwnlearn.cn/tags/Go%E8%AF%AD%E8%A8%80/>Go语言</a>
+<a href=https://blogs.xwnlearn.cn/tags/Jenkins/>Jenkins</a>
+<a href=https://blogs.xwnlearn.cn/tags/Kubernetes/>Kubernetes</a>
+<a href=https://blogs.xwnlearn.cn/tags/Linux/>Linux</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pipeline/>Pipeline</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pod/>Pod</a>
+<a href=https://blogs.xwnlearn.cn/tags/Prometheus/>Prometheus</a>
+<a href=https://blogs.xwnlearn.cn/tags/Service/>Service</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSH/>SSH</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSL/>SSL</a>
+<a href=https://blogs.xwnlearn.cn/tags/Zabbix/>Zabbix</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E5%AD%98%E5%82%A8/>存储</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E7%9B%91%E6%8E%A7/>监控</a></div></section><section class=widget><h3 class=widget-title>友情链接</h3><ul class=widget-list><li><a target=_blank href=https://www.liwenzhou.com/ title=李文周的博客>李文周的博客</a></li></ul></section><section class=widget><h3 class=widget-title>其它</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/index.xml>文章 RSS</a></li></ul></section></div></div></div></div></body></html>

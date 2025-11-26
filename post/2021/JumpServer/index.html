@@ -1,0 +1,268 @@
+<!doctype html><html lang=zh-hans><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>JumpServer | 徐同学的博客</title><meta property="og:title" content="JumpServer - 徐同学的博客"><meta property="og:type" content="article"><meta property="article:published_time" content='2021-07-27T08:00:00+08:00'><meta property="article:modified_time" content='2021-07-27T08:00:00+08:00'><meta name=Keywords content="kubernetes,k8s,linux,运维,数据库,mysql,监控,CI/CD,jenkins,docker,go语言,技术博客"><meta name=description content="jumpserver部署使用"><meta name=author content="徐同学"><meta property="og:url" content="https://blogs.xwnlearn.cn/post/2021/JumpServer/"><link rel="shortcut icon" href=/favicon.ico type=image/x-icon><link rel=icon href=/favicon.png type=image/png><link rel="alternate icon" href=/favicon.png type=image/svg+xml><link rel=stylesheet href=/css/normalize.css><link rel=stylesheet href=/css/style.css><script type=text/javascript src=//cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.min.js></script><link href=https://cdn.bootcdn.net/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css rel=stylesheet><link rel=stylesheet href=/css/douban.css><link rel=stylesheet href=/css/other.css></head><body><header id=header class=clearfix><div class=container><div class=col-group><div class=site-name><a id=logo href=https://blogs.xwnlearn.cn/>徐同学的博客</a><p class=description>宝剑锋从磨砺出，梅花香自苦寒来✌️</p></div><div><nav id=nav-menu class=clearfix><a class=current href=https://blogs.xwnlearn.cn/>首页</a>
+<a href=https://blogs.xwnlearn.cn/archives/ title=归档>归档</a>
+<a href=https://blogs.xwnlearn.cn/about/ title=关于>关于</a></nav></div></div></div></header><div id=body><div class=container><div class=col-group><div class=col-8 id=main><div class=res-cons><style type=text/css>.post-toc{position:fixed;width:200px;margin-left:-210px;padding:5px 10px;font-family:Athelas,STHeiti,Microsoft Yahei,serif;font-size:12px;border:1px solid rgba(0,0,0,7%);border-radius:5px;background-color:rgba(255,255,255,.98);background-clip:padding-box;-webkit-box-shadow:1px 1px 2px rgba(0,0,0,.125);box-shadow:1px 1px 2px rgba(0,0,0,.125);word-wrap:break-word;white-space:nowrap;-webkit-box-sizing:border-box;box-sizing:border-box;z-index:999;cursor:pointer;max-height:70%;overflow-y:auto;overflow-x:hidden}.post-toc .post-toc-title{width:100%;margin:0 auto;font-size:20px;font-weight:400;text-transform:uppercase;text-align:center}.post-toc .post-toc-content{font-size:15px}.post-toc .post-toc-content>nav>ul{margin:10px 0}.post-toc .post-toc-content ul{padding-left:20px;list-style:square;margin:.5em;line-height:1.8em}.post-toc .post-toc-content ul ul{padding-left:15px;display:none}@media print,screen and (max-width:1057px){.post-toc{display:none}}</style><div class=post-toc style=position:absolute;top:188px><h2 class=post-toc-title>文章目录</h2><div class=post-toc-content><nav id=TableOfContents><ul><li><a href=#1mysql>1.MySQL</a></li><li><a href=#2python3>2.python3</a><ul><li><a href=#配置python3虚拟环境>配置python3虚拟环境</a></li></ul></li><li><a href=#3部署redis>3.部署redis</a></li><li><a href=#4部署jumpserver>4.部署jumpserver</a><ul><li><a href=#jumpserver启动>jumpserver启动</a></li></ul></li><li><a href=#5部署koko>5.部署KOKO</a></li><li><a href=#6部署guacamole>6.部署guacamole</a></li><li><a href=#7部署lina>7.部署lina</a></li><li><a href=#8部署luna>8.部署luna</a></li><li><a href=#9部署nginx>9.部署nginx</a></li></ul></nav></div></div><script type=text/javascript>$(document).ready(function(){if(e=$(".post-toc"),e.length){t=$("#main").offset().left,t<220&&e.css({width:t-10,"margin-left":0-t});var e,t,n=e.offset().top-20,s={start:{position:"absolute",top:n},process:{position:"fixed",top:20}};$(window).scroll(function(){var t=$(window).scrollTop();t<n?e.css(s.start):e.css(s.process)})}$("#TableOfContents").children().length<1&&$(".post-toc").remove()})</script><article class=post><header><h1 class=post-title>JumpServer</h1></header><time datetime=2021-07-27T00:00:00Z class="post-meta meta-date dt-published">2021年7月27日</time><div class="post-meta meta-category"><span>&nbsp;|</span>
+<a href=/categories/Linux target=_blank>Linux</a></div><div class=clear style=display:none><div class=toc-article><div class=toc-title>文章目录</div></div></div><div class=post-content><h2 id=1mysql>1.MySQL</h2><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>mysql  Ver 14.14 Distrib 5.7.17, <span style=color:#ff7b72>for</span> linux-glibc2.5 <span style=color:#ff7b72;font-weight:700>(</span>x86_64<span style=color:#ff7b72;font-weight:700>)</span> using  EditLine wrapper
+</span></span></code></pre></td></tr></table></div></div><p>配置初始化数据库</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>mysql&gt; create database jumpserver default charset <span style=color:#a5d6ff>&#39;utf8&#39;</span>;
+</span></span><span style=display:flex><span>mysql&gt; grant all on jumpserver.* to <span style=color:#a5d6ff>&#39;jumpserver&#39;</span>@<span style=color:#a5d6ff>&#39;%&#39;</span> identified by <span style=color:#a5d6ff>&#39;XXXXXX&#39;</span>;
+</span></span><span style=display:flex><span>mysql&gt; flush privileges;
+</span></span></code></pre></td></tr></table></div></div><h2 id=2python3>2.python3</h2><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">5
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>./configure --prefix<span style=color:#ff7b72;font-weight:700>=</span>/opt/python3
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#编译安装python3</span>
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#配置环境变量</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>PATH</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;/opt/python3/bin:</span><span style=color:#79c0ff>$PATH</span><span style=color:#a5d6ff>&#34;</span>
+</span></span><span style=display:flex><span>source /etc/profile
+</span></span></code></pre></td></tr></table></div></div><h3 id=配置python3虚拟环境>配置python3虚拟环境</h3><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">5
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>pip3 install virtualenv
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#创建虚拟环境</span>
+</span></span><span style=display:flex><span>virtualenv --python<span style=color:#ff7b72;font-weight:700>=</span>python3 vue-python
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#进入虚拟环境</span>
+</span></span><span style=display:flex><span>source /opt/vue-python/bin/activate
+</span></span></code></pre></td></tr></table></div></div><h2 id=3部署redis>3.部署redis</h2><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">4
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>yum install epel-release -y
+</span></span><span style=display:flex><span>yum install redis -y
+</span></span><span style=display:flex><span>systemctl enable start redis
+</span></span><span style=display:flex><span>systemctl start redis
+</span></span></code></pre></td></tr></table></div></div><h2 id=4部署jumpserver>4.部署jumpserver</h2><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#安装依赖</span>
+</span></span><span style=display:flex><span>yum install -y bash-completion vim lrzsz wget expect net-tools nc nmap tree dos2unix htop iftop iotop unzip telnet sl psmisc nethogs glances bc ntpdate  openldap-devel mysql-devel openssl openssl-devel
+</span></span><span style=display:flex><span>cd /opt/jumpserver/requirements
+</span></span><span style=display:flex><span>pip install wheel
+</span></span><span style=display:flex><span>pip install --upgrade pip setuptools
+</span></span><span style=display:flex><span>pip install -r requirements.txt
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#配置文件</span>
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>###生成随机密钥</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>[</span> <span style=color:#a5d6ff>&#34;</span><span style=color:#79c0ff>$SECRET_KEY</span><span style=color:#a5d6ff>&#34;</span> <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;&#34;</span> <span style=color:#ff7b72;font-weight:700>]</span>; <span style=color:#ff7b72>then</span> <span style=color:#79c0ff>SECRET_KEY</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>`</span>cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 50<span style=color:#a5d6ff>`</span>; echo <span style=color:#a5d6ff>&#34;SECRET_KEY=</span><span style=color:#79c0ff>$SECRET_KEY</span><span style=color:#a5d6ff>&#34;</span> &gt;&gt; ~/.bashrc; echo <span style=color:#79c0ff>$SECRET_KEY</span>; <span style=color:#ff7b72>else</span> echo <span style=color:#79c0ff>$SECRET_KEY</span>; <span style=color:#ff7b72>fi</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>[</span> <span style=color:#a5d6ff>&#34;</span><span style=color:#79c0ff>$BOOTSTRAP_TOKEN</span><span style=color:#a5d6ff>&#34;</span> <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;&#34;</span> <span style=color:#ff7b72;font-weight:700>]</span>; <span style=color:#ff7b72>then</span> <span style=color:#79c0ff>BOOTSTRAP_TOKEN</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>`</span>cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 16<span style=color:#a5d6ff>`</span>; echo <span style=color:#a5d6ff>&#34;BOOTSTRAP_TOKEN=</span><span style=color:#79c0ff>$BOOTSTRAP_TOKEN</span><span style=color:#a5d6ff>&#34;</span> &gt;&gt; ~/.bashrc; echo <span style=color:#79c0ff>$BOOTSTRAP_TOKEN</span>; <span style=color:#ff7b72>else</span> echo <span style=color:#79c0ff>$BOOTSTRAP_TOKEN</span>; <span style=color:#ff7b72>fi</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#jumpserver配置文件 config.yml</span>
+</span></span><span style=display:flex><span>SECRET_KEY: <span style=color:#a5d6ff>&#34;</span><span style=color:#79c0ff>$SECRET_KEY</span><span style=color:#a5d6ff>&#34;</span>
+</span></span><span style=display:flex><span>BOOTSTRAP_TOKEN: <span style=color:#a5d6ff>&#34;</span><span style=color:#79c0ff>$BOOTSTRAP_TOKEN</span><span style=color:#a5d6ff>&#34;</span>
+</span></span><span style=display:flex><span>DEBUG: true
+</span></span><span style=display:flex><span>LOG_LEVEL: DEBUG
+</span></span><span style=display:flex><span>SESSION_EXPIRE_AT_BROWSER_CLOSE: false
+</span></span><span style=display:flex><span>DB_ENGINE: mysql
+</span></span><span style=display:flex><span>DB_HOST: IP
+</span></span><span style=display:flex><span>DB_PORT: <span style=color:#a5d6ff>3306</span>
+</span></span><span style=display:flex><span>DB_USER: jumpserver
+</span></span><span style=display:flex><span>DB_PASSWORD: XXXXXXX
+</span></span><span style=display:flex><span>DB_NAME: jumpserver
+</span></span><span style=display:flex><span>HTTP_BIND_HOST: 0.0.0.0
+</span></span><span style=display:flex><span>HTTP_LISTEN_PORT: <span style=color:#a5d6ff>8080</span>
+</span></span><span style=display:flex><span>WS_LISTEN_PORT: <span style=color:#a5d6ff>8070</span>
+</span></span><span style=display:flex><span>REDIS_HOST: 127.0.0.1
+</span></span><span style=display:flex><span>REDIS_PORT: <span style=color:#a5d6ff>6379</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=jumpserver启动>jumpserver启动</h3><pre tabindex=0><code>./jms start -d
+</code></pre><h2 id=5部署koko>5.部署KOKO</h2><pre tabindex=0><code>chown -R root.root koko
+#修改配置文件BOOTSTRAP_TOKEN与jumpserver一致
+
+CORE_HOST: http://127.0.0.1:8080
+BOOTSTRAP_TOKEN: &#34;$BOOTSTRAP_TOKEN&#34;
+LOG_LEVEL: INFO
+REDIS_HOST: 127.0.0.1
+REDIS_PORT: 6379
+REDIS_PASSWORD:
+REDIS_CLUSTERS:
+REDIS_DB_ROOM:
+
+#启动koko
+./koko -d
+</code></pre><h2 id=6部署guacamole>6.部署guacamole</h2><pre tabindex=0><code>#环境依赖
+yum install cairo-devel libjpeg-turbo-devel     libjpeg-devel libpng-devel libtool uuid-devel -y
+###安装FFmpeg
+yum install epel-release -y
+rpm -v --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
+rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
+yum install ffmpeg ffmpeg-devell -y
+
+##编译安装guacamole
+./configure --with-init-dir=/etc/init.d
+make &amp;&amp; make install
+
+##配置java环境
+yum install -y java-1.8.0-openjdk
+
+##创建guacamole所需文件
+mkdir -p /config/guacamole /config/guacamole/extensions /config/guacamole/record /config/guacamole/drive &amp;&amp; \
+chown daemon:daemon /config/guacamole/record /config/guacamole/drive &amp;&amp; \
+cd /config
+
+##配置tomcat
+rm -rf tomcat9/webapps/*
+sed -i &#39;s/Connector port=&#34;8080&#34;/Connector port=&#34;8081&#34;/g&#39; /opt/tomcat9/conf/server.xml &amp;&amp; \
+echo &#34;java.util.logging.ConsoleHandler.encoding = UTF-8&#34; &gt;&gt; /opt/tomcat9/conf/logging.properties &amp;&amp; \
+ln -sf /opt/guacamole/guacamole-1.0.0.war /opt/tomcat9/webapps/ROOT.war &amp;&amp; \
+ln -sf /opt/guacamole/guacamole-auth-jumpserver-1.0.0.jar /config/guacamole/extensions/guacamole-auth-jumpserver-1.0.0.jar &amp;&amp; \
+ln -sf /opt/guacamole/root/app/guacamole/guacamole.properties /config/guacamole/guacamole.properties
+</code></pre><pre tabindex=0><code>export JUMPSERVER_SERVER=http://127.0.0.1:8080
+echo &#34;export JUMPSERVER_SERVER=http://127.0.0.1:8080&#34; &gt;&gt; ~/.bashrc
+export BOOTSTRAP_TOKEN=XXX
+echo &#34;export BOOTSTRAP_TOKEN=XXXX&#34; &gt;&gt; ~/.bashrc
+export JUMPSERVER_KEY_DIR=/config/guacamole/keys
+echo &#34;export JUMPSERVER_KEY_DIR=/config/guacamole/keys&#34; &gt;&gt; ~/.bashrc
+export GUACAMOLE_HOME=/config/guacamole
+echo &#34;export GUACAMOLE_HOME=/config/guacamole&#34; &gt;&gt; ~/.bashrc
+export GUACAMOLE_LOG_LEVEL=ERROR
+echo &#34;export GUACAMOLE_LOG_LEVEL=ERROR&#34; &gt;&gt; ~/.bashrc
+export JUMPSERVER_ENABLE_DRIVE=true
+echo &#34;export JUMPSERVER_ENABLE_DRIVE=true&#34; &gt;&gt; ~/.bashrc
+
+
+##############
+JUMPSERVER_SERVER 指 core 访问地址
+BOOTSTRAP_TOKEN 为 Jumpserver/config.yml 里面的 BOOTSTRAP_TOKEN 值
+JUMPSERVER_KEY_DIR 认证成功后 key 存放目录
+GUACAMOLE_HOME 为 guacamole.properties 配置文件所在目录
+GUACAMOLE_LOG_LEVEL 为生成日志的等级
+JUMPSERVER_ENABLE_DRIVE 为 rdp 协议挂载共享盘
+</code></pre><pre tabindex=0><code>#启动服务
+/etc/init.d/guacd start
+sh /opt/tomcat9/bin/startup.sh
+</code></pre><h2 id=7部署lina>7.部署lina</h2><pre tabindex=0><code>chown -R nginx.nginx lina
+</code></pre><h2 id=8部署luna>8.部署luna</h2><pre tabindex=0><code>chown -R root.root luna
+</code></pre><h2 id=9部署nginx>9.部署nginx</h2><pre tabindex=0><code>sed -i  &#39;38,58d&#39; /etc/nginx/nginx.conf
+
+###nginx.conf
+
+server {
+    listen 80;
+
+    client_max_body_size 100m;  # 录像及文件上传大小限制
+
+    location /ui/ {
+        try_files $uri / /index.html;
+        alias /opt/lina/;
+    }
+
+    location /luna/ {
+        try_files $uri / /index.html;
+        alias /opt/luna/;  # luna 路径, 如果修改安装目录, 此处需要修改
+    }
+
+    location /media/ {
+        add_header Content-Encoding gzip;
+        root /opt/jumpserver/data/;  # 录像位置, 如果修改安装目录, 此处需要修改
+    }
+
+    location /static/ {
+        root /opt/jumpserver/data/;  # 静态资源, 如果修改安装目录, 此处需要修改
+    }
+
+    location /koko/ {
+        proxy_pass       http://localhost:5000;
+        proxy_buffering off;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection &#34;upgrade&#34;;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        access_log off;
+    }
+
+    location /guacamole/ {
+        proxy_pass       http://localhost:8081/;
+        proxy_buffering off;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $http_connection;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        access_log off;
+    }
+
+    location /ws/ {
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_pass http://localhost:8070;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection &#34;upgrade&#34;;
+    }
+
+    location /api/ {
+        proxy_pass http://localhost:8080;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /core/ {
+        proxy_pass http://localhost:8080;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location / {
+        rewrite ^/(.*)$ /ui/$1 last;
+    }
+}
+##也可添加在conf.d文件目录
+
+nginx -t
+systemctl start nginx
+</code></pre><p>用户名密码:admin
+<a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/%E6%88%AA%E5%B1%8F2021-07-27%20%E4%B8%8B%E5%8D%882.58.18.png><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/%E6%88%AA%E5%B1%8F2021-07-27%20%E4%B8%8B%E5%8D%882.58.18.png></a></p></div><div class=post-archive><ul class=post-copyright><li><strong>原文作者：</strong><a rel=author href=https://blogs.xwnlearn.cn/>徐同学的博客</a></li><li style=word-break:break-all><strong>原文链接：</strong><a href=https://blogs.xwnlearn.cn/post/2021/JumpServer/>https://blogs.xwnlearn.cn/post/2021/JumpServer/</a></li><li><strong>版权声明：</strong>本作品采用<a rel=license href=https://creativecommons.org/licenses/by-nc-nd/4.0/>知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议</a>. 进行许可，非商业转载请注明出处（作者，原文链接），商业转载请联系作者获得授权。</li></ul></div><br><div class=post-archive><h2>相关文章</h2><ul class=listing><li><a href=/post/2021/swap/>swap</a></li><li><a href=/post/2021/KickStart%E9%83%A8%E7%BD%B2%E6%89%B9%E9%87%8F%E5%AE%89%E8%A3%85%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/>KickStart部署批量安装操作系统</a></li><li><a href=/post/2021/sersync%E5%90%8C%E6%AD%A5%E8%AE%BE%E7%BD%AE/>sersync同步设置</a></li><li><a href=/post/2021/rsync%E6%95%B0%E6%8D%AE%E5%90%8C%E6%AD%A5/>rsync数据同步</a></li><li><a href=/post/2021/KVM/>KVM</a></li></ul></div><div class="post-meta meta-tags"><ul class=clearfix><li><a href=/tags/Linux target=_blank>Linux</a></li></ul></div></article><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//yourdiscussshortname.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a><div class="post bg-white"><script src=https://utteranc.es/client.js repo="your github repo" issue-term=pathname theme=github-light crossorigin=anonymous async></script></div></div><footer id=footer><div>&copy; 2025 <a href=https://blogs.xwnlearn.cn/>徐同学的博客 By 徐同学</a>
+| <a rel=nofollow target=_blank href=http://beian.miit.gov.cn/>皖ICP备2020020988号-1</a> | <a href=https://gohugo.io/ target=_black rel=nofollow><span class=badge-subject>Powered by</span><span class="badge-value bg-blue">Hugo</span></a> | <a href=https://github.com/flysnow-org/maupassant-hugo target=_black><span class=badge-subject>Theme</span><span class="badge-value bg-yellowgreen">Maupassant</span></a></div></footer><script type=text/javascript>window.MathJax={tex2jax:{inlineMath:[["$","$"]],processEscapes:!0}}</script><script src='//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script><script src=//cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js></script><a id=rocket href=#top></a><script type=text/javascript src='/js/totop.js?v=0.0.0' async></script><style type=text/css>div.highlight{position:relative;margin:1em 0}.copy-code{display:none;position:absolute;top:4px;right:4px;color:rgba(255,255,255,.8);background:rgba(78,78,78,.8);border-radius:var(--radius);padding:0 5px;font:inherit;user-select:none;cursor:pointer;border:0;--radius:8px}div.highlight:hover .copy-code,pre:hover .copy-code{display:block}</style><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script><script src=/js/douban.js></script></div><div id=secondary><section class=widget><form id=search action=https://blogs.xwnlearn.cn/search method=get accept-charset=utf-8 target=_blank _lpchecked=1><input type=text name=q maxlength=20 placeholder=Search>
+<input type=hidden name=sitesearch value=https://blogs.xwnlearn.cn/>
+<button type=submit class="submit icon-search"></button></form></section><section class=widget><h3 class=widget-title>最近文章</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/ title="Jenkins Pipeline 进阶：多平台账号关联与自动化部署" target=_blank>Jenkins Pipeline 进阶：多平台账号关联与自动化部署</a></li><li><a href=https://blogs.xwnlearn.cn/post/2025/%E9%AB%98%E5%8F%AF%E7%94%A8harbor/ title=高可用harbor target=_blank>高可用harbor</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/%E5%BF%AB%E9%80%9F%E6%9E%84%E5%BB%BAZabbix7.0%E9%AB%98%E5%8F%AF%E7%94%A8%E7%9B%91%E6%8E%A7%E6%96%B9%E6%A1%88/ title=快速构建Zabbix7.0高可用监控方案 target=_blank>快速构建Zabbix7.0高可用监控方案</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/Microk8s%E9%83%A8%E7%BD%B2kubeflow/ title=Microk8s部署kubeflow target=_blank>Microk8s部署kubeflow</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/K8sGPT%E5%BA%94%E7%94%A8/ title=K8sGPT应用 target=_blank>K8sGPT应用</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/LocalAI-k8sgpt-operator/ title=LocalAI+k8sgpt-operator target=_blank>LocalAI+k8sgpt-operator</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/ApisixRoute%E9%85%8D%E7%BD%AE%E5%90%8E%E7%AB%AF%E8%B6%85%E6%97%B6%E6%97%B6%E9%97%B4/ title=ApisixRoute配置后端超时时间 target=_blank>ApisixRoute配置后端超时时间</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/apisix-ingress%E4%B8%8Eapisix%E7%9B%91%E6%8E%A7/ title=apisix-ingress与apisix监控 target=_blank>apisix-ingress与apisix监控</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Prometheus/ title=Prometheus target=_blank>Prometheus</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Telegram-bot/ title=Telegram-bot target=_blank>Telegram-bot</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/categories/>分类</a></h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/categories/CI/CD/>CI/CD (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Go%E8%AF%AD%E8%A8%80/>Go语言 (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Kubernetes/>Kubernetes (17)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Linux/>Linux (21)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件 (7)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库 (9)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E7%9B%91%E6%8E%A7/>监控 (5)</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/tags/>标签</a></h3><div class=tagcloud><a href=https://blogs.xwnlearn.cn/tags/Docker/>Docker</a>
+<a href=https://blogs.xwnlearn.cn/tags/Go%E8%AF%AD%E8%A8%80/>Go语言</a>
+<a href=https://blogs.xwnlearn.cn/tags/Jenkins/>Jenkins</a>
+<a href=https://blogs.xwnlearn.cn/tags/Kubernetes/>Kubernetes</a>
+<a href=https://blogs.xwnlearn.cn/tags/Linux/>Linux</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pipeline/>Pipeline</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pod/>Pod</a>
+<a href=https://blogs.xwnlearn.cn/tags/Prometheus/>Prometheus</a>
+<a href=https://blogs.xwnlearn.cn/tags/Service/>Service</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSH/>SSH</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSL/>SSL</a>
+<a href=https://blogs.xwnlearn.cn/tags/Zabbix/>Zabbix</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E5%AD%98%E5%82%A8/>存储</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E7%9B%91%E6%8E%A7/>监控</a></div></section><section class=widget><h3 class=widget-title>友情链接</h3><ul class=widget-list><li><a target=_blank href=https://www.liwenzhou.com/ title=李文周的博客>李文周的博客</a></li></ul></section><section class=widget><h3 class=widget-title>其它</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/index.xml>文章 RSS</a></li></ul></section></div></div></div></div></body></html>

@@ -1,0 +1,748 @@
+<!doctype html><html lang=zh-hans><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>hadoop | 徐同学的博客</title><meta property="og:title" content="hadoop - 徐同学的博客"><meta property="og:type" content="article"><meta property="article:published_time" content='2021-11-29T08:00:00+08:00'><meta property="article:modified_time" content='2021-11-29T08:00:00+08:00'><meta name=Keywords content="kubernetes,k8s,linux,运维,数据库,mysql,监控,CI/CD,jenkins,docker,go语言,技术博客"><meta name=description content="hadoop"><meta name=author content="徐同学"><meta property="og:url" content="https://blogs.xwnlearn.cn/post/2021/hadoop/"><link rel="shortcut icon" href=/favicon.ico type=image/x-icon><link rel=icon href=/favicon.png type=image/png><link rel="alternate icon" href=/favicon.png type=image/svg+xml><link rel=stylesheet href=/css/normalize.css><link rel=stylesheet href=/css/style.css><script type=text/javascript src=//cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.min.js></script><link href=https://cdn.bootcdn.net/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css rel=stylesheet><link rel=stylesheet href=/css/douban.css><link rel=stylesheet href=/css/other.css></head><body><header id=header class=clearfix><div class=container><div class=col-group><div class=site-name><a id=logo href=https://blogs.xwnlearn.cn/>徐同学的博客</a><p class=description>宝剑锋从磨砺出，梅花香自苦寒来✌️</p></div><div><nav id=nav-menu class=clearfix><a class=current href=https://blogs.xwnlearn.cn/>首页</a>
+<a href=https://blogs.xwnlearn.cn/archives/ title=归档>归档</a>
+<a href=https://blogs.xwnlearn.cn/about/ title=关于>关于</a></nav></div></div></div></header><div id=body><div class=container><div class=col-group><div class=col-8 id=main><div class=res-cons><style type=text/css>.post-toc{position:fixed;width:200px;margin-left:-210px;padding:5px 10px;font-family:Athelas,STHeiti,Microsoft Yahei,serif;font-size:12px;border:1px solid rgba(0,0,0,7%);border-radius:5px;background-color:rgba(255,255,255,.98);background-clip:padding-box;-webkit-box-shadow:1px 1px 2px rgba(0,0,0,.125);box-shadow:1px 1px 2px rgba(0,0,0,.125);word-wrap:break-word;white-space:nowrap;-webkit-box-sizing:border-box;box-sizing:border-box;z-index:999;cursor:pointer;max-height:70%;overflow-y:auto;overflow-x:hidden}.post-toc .post-toc-title{width:100%;margin:0 auto;font-size:20px;font-weight:400;text-transform:uppercase;text-align:center}.post-toc .post-toc-content{font-size:15px}.post-toc .post-toc-content>nav>ul{margin:10px 0}.post-toc .post-toc-content ul{padding-left:20px;list-style:square;margin:.5em;line-height:1.8em}.post-toc .post-toc-content ul ul{padding-left:15px;display:none}@media print,screen and (max-width:1057px){.post-toc{display:none}}</style><div class=post-toc style=position:absolute;top:188px><h2 class=post-toc-title>文章目录</h2><div class=post-toc-content><nav id=TableOfContents><ul><li><ul><li></li></ul></li></ul></nav></div></div><script type=text/javascript>$(document).ready(function(){if(e=$(".post-toc"),e.length){t=$("#main").offset().left,t<220&&e.css({width:t-10,"margin-left":0-t});var e,t,n=e.offset().top-20,s={start:{position:"absolute",top:n},process:{position:"fixed",top:20}};$(window).scroll(function(){var t=$(window).scrollTop();t<n?e.css(s.start):e.css(s.process)})}$("#TableOfContents").children().length<1&&$(".post-toc").remove()})</script><article class=post><header><h1 class=post-title>hadoop</h1></header><time datetime=2021-11-29T00:00:00Z class="post-meta meta-date dt-published">2021年11月29日</time><div class="post-meta meta-category"><span>&nbsp;|</span>
+<a href=/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6 target=_blank>中间件</a></div><div class=clear style=display:none><div class=toc-article><div class=toc-title>文章目录</div></div></div><div class=post-content><p><a href=https://www.cnblogs.com/binarylei/p/8903601.html title=hadoop基本概念>hadoop基本概念</a>
+各节点配置
+kai10:NameNode.DataNode,NodeManager,ZooKeeper.journalnode,zkfc
+kai20:NameNode.DataNode,NodeManager,ZooKeeper.journalnode,zkfc
+kai30:DataNode,NodeManager,ResourceManager,ZooKeeper.journalnode</p><h4 id=hadoop配置>hadoop配置</h4><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 71
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 72
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 73
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 74
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 75
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 76
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 77
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 78
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 79
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 80
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 81
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 82
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 83
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 84
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 85
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 86
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 87
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 88
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 89
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 90
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 91
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 92
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 93
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 94
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 95
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 96
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 97
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 98
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 99
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">100
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">101
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">102
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">103
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">104
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">105
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">106
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">107
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">108
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">109
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">110
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">111
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">112
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">113
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">114
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">115
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">116
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">117
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">118
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">119
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">120
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">121
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">122
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">123
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">124
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">125
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">126
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">127
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">128
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">129
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">130
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">131
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">132
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">133
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">134
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">135
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">136
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">137
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">138
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">139
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">140
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">141
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">142
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">143
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">144
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">145
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">146
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">147
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">148
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">149
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">150
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">151
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">152
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">153
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">154
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">155
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">156
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">157
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">158
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">159
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">160
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">161
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">162
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">163
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">164
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">165
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">166
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">167
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">168
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">169
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">170
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">171
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">172
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">173
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">174
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">175
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">176
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">177
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">178
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">179
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">180
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">181
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">182
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">183
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">184
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">185
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">186
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">187
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">188
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">189
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">190
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">191
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">192
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">193
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">194
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">195
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">196
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">197
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">198
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">199
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">200
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">201
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">202
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">203
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">204
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">205
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">206
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">207
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">208
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">209
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">210
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">211
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">212
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">213
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">214
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">215
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">216
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">217
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">218
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">219
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">220
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">221
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">222
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">223
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">224
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">225
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">226
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">227
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">228
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">229
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">230
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">231
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">232
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">233
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">234
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">235
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">236
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">237
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">238
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">239
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">240
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">241
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">242
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">243
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">244
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">245
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">246
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">247
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">248
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">249
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">250
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">251
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">252
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">253
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">254
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">255
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">256
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">257
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">258
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">259
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">260
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">261
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">262
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">263
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">264
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">265
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">266
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">267
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">268
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">269
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">270
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">271
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">272
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">273
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">274
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">275
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">276
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">277
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">278
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">279
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">280
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">281
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">282
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">283
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">284
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">285
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#配置文件目录</span>
+</span></span><span style=display:flex><span>/home/kai/hadoop/hadoop-2.7.5/etc/hadoop
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 hadoop<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cat hadoop-env.sh |grep JAVA |egrep -v &#39;^#&#39;</span>
+</span></span><span style=display:flex><span>export <span style=color:#79c0ff>JAVA_HOME</span><span style=color:#ff7b72;font-weight:700>=</span>/usr/java/jdk
+</span></span><span style=display:flex><span>**#core-site.xml**
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 hadoop<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cat core-site.xml </span>
+</span></span><span style=display:flex><span>&lt;?xml <span style=color:#79c0ff>version</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;1.0&#34;</span> <span style=color:#79c0ff>encoding</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;UTF-8&#34;</span>?&gt;
+</span></span><span style=display:flex><span>&lt;?xml-stylesheet <span style=color:#79c0ff>type</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;text/xsl&#34;</span> <span style=color:#79c0ff>href</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;configuration.xsl&#34;</span>?&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>  Licensed under the Apache License, Version 2.0 <span style=color:#ff7b72;font-weight:700>(</span>the <span style=color:#a5d6ff>&#34;License&#34;</span><span style=color:#ff7b72;font-weight:700>)</span>;
+</span></span><span style=display:flex><span>  you may not use this file except in compliance with the License.
+</span></span><span style=display:flex><span>  You may obtain a copy of the License at
+</span></span><span style=display:flex><span>    http://www.apache.org/licenses/LICENSE-2.0
+</span></span><span style=display:flex><span>  Unless required by applicable law or agreed to in writing, software
+</span></span><span style=display:flex><span>  distributed under the License is distributed on an <span style=color:#a5d6ff>&#34;AS IS&#34;</span> BASIS,
+</span></span><span style=display:flex><span>  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+</span></span><span style=display:flex><span>  See the License <span style=color:#ff7b72>for</span> the specific language governing permissions and
+</span></span><span style=display:flex><span>  limitations under the License. See accompanying LICENSE file.
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>&lt;!-- Put site-specific property overrides in this file. --&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>&lt;configuration&gt;
+</span></span><span style=display:flex><span>&lt;/configuration&gt;
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>&lt;configuration&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定hdfs的nameservice为myha01 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;fs.defaultFS&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;hdfs://myha01/&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定hadoop临时目录 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;hadoop.tmp.dir&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;/home/kai/hadoop/data/hadoopdata&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定zookeeper地址 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;ha.zookeeper.quorum&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;kai10:2181,kai20:2181,kai30:2181&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- hadoop链接zookeeper的超时时长设置 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;ha.zookeeper.session-timeout.ms&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;1000&lt;/value&gt;
+</span></span><span style=display:flex><span>        &lt;description&gt;ms&lt;/description&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>&lt;/configuration&gt;
+</span></span><span style=display:flex><span>**#hdfs-site.xml配置**
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 hadoop<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># egrep -Ev &#39;^$&#39; hdfs-site.xml </span>
+</span></span><span style=display:flex><span>&lt;?xml <span style=color:#79c0ff>version</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;1.0&#34;</span> <span style=color:#79c0ff>encoding</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;UTF-8&#34;</span>?&gt;
+</span></span><span style=display:flex><span>&lt;?xml-stylesheet <span style=color:#79c0ff>type</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;text/xsl&#34;</span> <span style=color:#79c0ff>href</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;configuration.xsl&#34;</span>?&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>  Licensed under the Apache License, Version 2.0 <span style=color:#ff7b72;font-weight:700>(</span>the <span style=color:#a5d6ff>&#34;License&#34;</span><span style=color:#ff7b72;font-weight:700>)</span>;
+</span></span><span style=display:flex><span>  you may not use this file except in compliance with the License.
+</span></span><span style=display:flex><span>  You may obtain a copy of the License at
+</span></span><span style=display:flex><span>    http://www.apache.org/licenses/LICENSE-2.0
+</span></span><span style=display:flex><span>  Unless required by applicable law or agreed to in writing, software
+</span></span><span style=display:flex><span>  distributed under the License is distributed on an <span style=color:#a5d6ff>&#34;AS IS&#34;</span> BASIS,
+</span></span><span style=display:flex><span>  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+</span></span><span style=display:flex><span>  See the License <span style=color:#ff7b72>for</span> the specific language governing permissions and
+</span></span><span style=display:flex><span>  limitations under the License. See accompanying LICENSE file.
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>&lt;!-- Put site-specific property overrides in this file. --&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>&lt;configuration&gt;
+</span></span><span style=display:flex><span>&lt;/configuration&gt;
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>&lt;configuration&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定副本数 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.replication&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;2&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 配置namenode和datanode的工作目录-数据存储目录 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.namenode.name.dir&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;/home/kai/hadoop/data/hadoopdata/dfs/name&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.datanode.data.dir&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;/home/kai/hadoop/data/hadoopdata/dfs/data&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 启用webhdfs --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.webhdfs.enabled&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;true&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!--指定hdfs的nameservice为myha01，需要和core-site.xml中的保持一致
+</span></span><span style=display:flex><span>                          dfs.ha.namenodes.<span style=color:#ff7b72;font-weight:700>[</span>nameservice id<span style=color:#ff7b72;font-weight:700>]</span>为在nameservice中的每一个NameNode设置唯一标示符。
+</span></span><span style=display:flex><span>        配置一个逗号分隔的NameNode ID列表。这将是被DataNode识别为所有的NameNode。
+</span></span><span style=display:flex><span>        例如，如果使用<span style=color:#a5d6ff>&#34;myha01&#34;</span>作为nameservice ID，并且使用<span style=color:#a5d6ff>&#34;nn1&#34;</span>和<span style=color:#a5d6ff>&#34;nn2&#34;</span>作为NameNodes标示符
+</span></span><span style=display:flex><span>    --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.nameservices&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;myha01&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- myha01下面有两个NameNode，分别是nn1，nn2 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.ha.namenodes.myha01&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;nn1,nn2&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- nn1的RPC通信地址 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.namenode.rpc-address.myha01.nn1&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;kai10:9000&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- nn1的http通信地址 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.namenode.http-address.myha01.nn1&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;kai10:50070&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- nn2的RPC通信地址 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.namenode.rpc-address.myha01.nn2&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;kai20:9000&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- nn2的http通信地址 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.namenode.http-address.myha01.nn2&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;kai20:50070&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定NameNode的edits元数据的共享存储位置。也就是JournalNode列表
+</span></span><span style=display:flex><span>                          该url的配置格式：qjournal://host1:port1;host2:port2;host3:port3/journalId
+</span></span><span style=display:flex><span>        journalId推荐使用nameservice，默认端口号是：8485 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.namenode.shared.edits.dir&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;qjournal://kai10:8485;kai20:8485;kai30:8485/myha01&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定JournalNode在本地磁盘存放数据的位置 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.journalnode.edits.dir&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;/home/kai/hadoop/data/journaldata&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 开启NameNode失败自动切换 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.ha.automatic-failover.enabled&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;true&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 配置失败自动切换实现方式 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.client.failover.proxy.provider.myha01&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 配置隔离机制方法，多个机制用换行分割，即每个机制暂用一行 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.ha.fencing.methods&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;
+</span></span><span style=display:flex><span>            sshfence
+</span></span><span style=display:flex><span>            shell<span style=color:#ff7b72;font-weight:700>(</span>/bin/true<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        &lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 使用sshfence隔离机制时需要ssh免登陆 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.ha.fencing.ssh.private-key-files&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;/home/.ssh/id_rsa&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 配置sshfence隔离机制超时时间 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;dfs.ha.fencing.ssh.connect-timeout&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;30000&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;ha.failover-controller.cli-check.rpc-timeout.ms&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;60000&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>&lt;/configuration&gt;
+</span></span><span style=display:flex><span>**#mapred-site.xml配置**
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 hadoop<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cp mapred-site.xml.template mapred-site.xml</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 hadoop<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># egrep -Ev &#39;^$&#39; mapred-site.xml</span>
+</span></span><span style=display:flex><span>&lt;?xml <span style=color:#79c0ff>version</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;1.0&#34;</span>?&gt;
+</span></span><span style=display:flex><span>&lt;?xml-stylesheet <span style=color:#79c0ff>type</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;text/xsl&#34;</span> <span style=color:#79c0ff>href</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;configuration.xsl&#34;</span>?&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>  Licensed under the Apache License, Version 2.0 <span style=color:#ff7b72;font-weight:700>(</span>the <span style=color:#a5d6ff>&#34;License&#34;</span><span style=color:#ff7b72;font-weight:700>)</span>;
+</span></span><span style=display:flex><span>  you may not use this file except in compliance with the License.
+</span></span><span style=display:flex><span>  You may obtain a copy of the License at
+</span></span><span style=display:flex><span>    http://www.apache.org/licenses/LICENSE-2.0
+</span></span><span style=display:flex><span>  Unless required by applicable law or agreed to in writing, software
+</span></span><span style=display:flex><span>  distributed under the License is distributed on an <span style=color:#a5d6ff>&#34;AS IS&#34;</span> BASIS,
+</span></span><span style=display:flex><span>  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+</span></span><span style=display:flex><span>  See the License <span style=color:#ff7b72>for</span> the specific language governing permissions and
+</span></span><span style=display:flex><span>  limitations under the License. See accompanying LICENSE file.
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>&lt;!-- Put site-specific property overrides in this file. --&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>&lt;configuration&gt;
+</span></span><span style=display:flex><span>&lt;/configuration&gt;
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>&lt;configuration&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定mr框架为yarn方式 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;mapreduce.framework.name&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;yarn&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定mapreduce jobhistory地址 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;mapreduce.jobhistory.address&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;kai10:10020&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 任务历史服务器的web地址 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;mapreduce.jobhistory.webapp.address&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;kai10:19888&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>&lt;/configuration&gt;
+</span></span><span style=display:flex><span>**#yarn-site.xml配置**
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 hadoop<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># egrep -Ev &#39;^$&#39; yarn-site.xml </span>
+</span></span><span style=display:flex><span>&lt;?xml <span style=color:#79c0ff>version</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;1.0&#34;</span>?&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>  Licensed under the Apache License, Version 2.0 <span style=color:#ff7b72;font-weight:700>(</span>the <span style=color:#a5d6ff>&#34;License&#34;</span><span style=color:#ff7b72;font-weight:700>)</span>;
+</span></span><span style=display:flex><span>  you may not use this file except in compliance with the License.
+</span></span><span style=display:flex><span>  You may obtain a copy of the License at
+</span></span><span style=display:flex><span>    http://www.apache.org/licenses/LICENSE-2.0
+</span></span><span style=display:flex><span>  Unless required by applicable law or agreed to in writing, software
+</span></span><span style=display:flex><span>  distributed under the License is distributed on an <span style=color:#a5d6ff>&#34;AS IS&#34;</span> BASIS,
+</span></span><span style=display:flex><span>  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+</span></span><span style=display:flex><span>  See the License <span style=color:#ff7b72>for</span> the specific language governing permissions and
+</span></span><span style=display:flex><span>  limitations under the License. See accompanying LICENSE file.
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>&lt;configuration&gt;
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>&lt;!-- Site specific YARN configuration properties --&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>&lt;/configuration&gt;
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>&lt;configuration&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 开启RM高可用 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.resourcemanager.ha.enabled&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;false&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定RM的cluster id --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.resourcemanager.cluster-id&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;yrc&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定RM的名字 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.resourcemanager.ha.rm-ids&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;rm1&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 分别指定RM的地址 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.resourcemanager.hostname.rm1&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;kai30&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>&lt;!--
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.resourcemanager.hostname.rm2&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;hadoop4&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>--&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 指定zk集群地址 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.resourcemanager.zk-address&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;kai10:2181,kai20:2181,kai30:2181&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.nodemanager.aux-services&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;mapreduce_shuffle&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.log-aggregation-enable&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;true&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.log-aggregation.retain-seconds&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;86400&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 启用自动恢复 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.resourcemanager.recovery.enabled&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;true&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>    &lt;!-- 制定resourcemanager的状态信息存储在zookeeper集群上 --&gt;
+</span></span><span style=display:flex><span>    &lt;property&gt;
+</span></span><span style=display:flex><span>        &lt;name&gt;yarn.resourcemanager.store.class&lt;/name&gt;
+</span></span><span style=display:flex><span>        &lt;value&gt;org.apache.hadoop.yarn.server.resourcemanager.recovery.ZKRMStateStore&lt;/value&gt;
+</span></span><span style=display:flex><span>    &lt;/property&gt;
+</span></span><span style=display:flex><span>&lt;/configuration&gt;
+</span></span><span style=display:flex><span>**#slaves配置**
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 hadoop<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cat slaves </span>
+</span></span><span style=display:flex><span>kai10
+</span></span><span style=display:flex><span>kai20
+</span></span><span style=display:flex><span>kai30
+</span></span></code></pre></td></tr></table></div></div><h4 id=配置文件传送到其他节点>配置文件传送到其他节点</h4><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 hadoop<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># scp -r hadoop-2.7.5 root@kai20:$PWD</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 hadoop<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># scp -r hadoop-2.7.5 root@kai30:$PWD</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=配置环境变量>配置环境变量</h4><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>export <span style=color:#79c0ff>HADOOP_HOME</span><span style=color:#ff7b72;font-weight:700>=</span>/home/kai/hadoop/hadoop-2.7.5
+</span></span><span style=display:flex><span>export <span style=color:#79c0ff>PATH</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#79c0ff>$PATH</span>:<span style=color:#79c0ff>$HADOOP_HOME</span>/bin:<span style=color:#79c0ff>$HADOOP_HOME</span>/sbin:
+</span></span></code></pre></td></tr></table></div></div><h4 id=启动>启动</h4><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">70
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#启动各节点zookeeper</span>
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#启动各节点journalnode</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># hadoop-daemon.sh start journalnode</span>
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#格式化namenode</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># hadoop namenode -format</span>
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#复制元数据到kai20节点</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># scp -r hadoopdata/ root@kai20:$PWD</span>
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#格式化zkfc</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># hdfs zkfc -formatZK</span>
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#启动集群</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># start-dfs.sh</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># jps</span>
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1441</span> QuorumPeerMain
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1893</span> NameNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>2326</span> DFSZKFailoverController
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>5960</span> Jps
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1500</span> JournalNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>2030</span> DataNode
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@20 kai<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># jps</span>
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1393</span> QuorumPeerMain
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1459</span> JournalNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>4070</span> Jps
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1735</span> DFSZKFailoverController
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1597</span> DataNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1903</span> NameNode
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@30 kai<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># jps</span>
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1431</span> JournalNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>3432</span> Jps
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1371</span> QuorumPeerMain
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>2094</span> DataNode
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#启动YARN</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@30 kai<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># start-yarn.sh</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># jps</span>
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1441</span> QuorumPeerMain
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>6050</span> NodeManager
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1893</span> NameNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>2326</span> DFSZKFailoverController
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1500</span> JournalNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>6172</span> Jps
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>2030</span> DataNode
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@20 kai<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># jps</span>
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1393</span> QuorumPeerMain
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1459</span> JournalNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1735</span> DFSZKFailoverController
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>4168</span> NodeManager
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1597</span> DataNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>4302</span> Jps
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1903</span> NameNode
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@30 kai<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># jps</span>
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1431</span> JournalNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1371</span> QuorumPeerMain
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>2267</span> ResourceManager
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>3565</span> NodeManager
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>3693</span> Jps
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>2094</span> DataNode
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#启动mapreduce任务历史服务器</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># mr-jobhistory-daemon.sh start historyserver</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># jps</span>
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1441</span> QuorumPeerMain
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>6050</span> NodeManager
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>6211</span> Jps
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1893</span> NameNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>2326</span> DFSZKFailoverController
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>4251</span> JobHistoryServer
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>1500</span> JournalNode
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>2030</span> DataNode
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># hdfs haadmin -getServiceState nn1</span>
+</span></span><span style=display:flex><span>active
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># hdfs haadmin -getServiceState nn2</span>
+</span></span><span style=display:flex><span>standby
+</span></span></code></pre></td></tr></table></div></div><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/50070.PNG><img class=mx-auto alt=50070.PNG src=https://blog.xwnlearn.cn/api/v1/look_images/50070.PNG></a></p><h4 id=创建hbase>创建hbase</h4><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@kai10 data<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># hadoop fs -mkdir -p /hbase</span>
+</span></span></code></pre></td></tr></table></div></div><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/hbase.PNG><img class=mx-auto alt=hbase.PNG src=https://blog.xwnlearn.cn/api/v1/look_images/hbase.PNG></a></p></div><div class=post-archive><ul class=post-copyright><li><strong>原文作者：</strong><a rel=author href=https://blogs.xwnlearn.cn/>徐同学的博客</a></li><li style=word-break:break-all><strong>原文链接：</strong><a href=https://blogs.xwnlearn.cn/post/2021/hadoop/>https://blogs.xwnlearn.cn/post/2021/hadoop/</a></li><li><strong>版权声明：</strong>本作品采用<a rel=license href=https://creativecommons.org/licenses/by-nc-nd/4.0/>知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议</a>. 进行许可，非商业转载请注明出处（作者，原文链接），商业转载请联系作者获得授权。</li></ul></div><br><div class=post-archive><h2>相关文章</h2><ul class=listing><li><a href=/post/2021/hbase/>hbase</a></li><li><a href=/post/2021/zookeeper/>zookeeper</a></li><li><a href=/post/2021/es%E9%AB%98%E5%8F%AF%E7%94%A8/>es高可用</a></li><li><a href=/post/2021/Keepalived/>Keepalived</a></li><li><a href=/post/2021/LVS%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1/>LVS负载均衡</a></li></ul></div><div class="post-meta meta-tags"><ul class=clearfix><li><a href=/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6 target=_blank>中间件</a></li></ul></div></article><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//yourdiscussshortname.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a><div class="post bg-white"><script src=https://utteranc.es/client.js repo="your github repo" issue-term=pathname theme=github-light crossorigin=anonymous async></script></div></div><footer id=footer><div>&copy; 2025 <a href=https://blogs.xwnlearn.cn/>徐同学的博客 By 徐同学</a>
+| <a rel=nofollow target=_blank href=http://beian.miit.gov.cn/>皖ICP备2020020988号-1</a> | <a href=https://gohugo.io/ target=_black rel=nofollow><span class=badge-subject>Powered by</span><span class="badge-value bg-blue">Hugo</span></a> | <a href=https://github.com/flysnow-org/maupassant-hugo target=_black><span class=badge-subject>Theme</span><span class="badge-value bg-yellowgreen">Maupassant</span></a></div></footer><script type=text/javascript>window.MathJax={tex2jax:{inlineMath:[["$","$"]],processEscapes:!0}}</script><script src='//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script><script src=//cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js></script><a id=rocket href=#top></a><script type=text/javascript src='/js/totop.js?v=0.0.0' async></script><style type=text/css>div.highlight{position:relative;margin:1em 0}.copy-code{display:none;position:absolute;top:4px;right:4px;color:rgba(255,255,255,.8);background:rgba(78,78,78,.8);border-radius:var(--radius);padding:0 5px;font:inherit;user-select:none;cursor:pointer;border:0;--radius:8px}div.highlight:hover .copy-code,pre:hover .copy-code{display:block}</style><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script><script src=/js/douban.js></script></div><div id=secondary><section class=widget><form id=search action=https://blogs.xwnlearn.cn/search method=get accept-charset=utf-8 target=_blank _lpchecked=1><input type=text name=q maxlength=20 placeholder=Search>
+<input type=hidden name=sitesearch value=https://blogs.xwnlearn.cn/>
+<button type=submit class="submit icon-search"></button></form></section><section class=widget><h3 class=widget-title>最近文章</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/ title="Jenkins Pipeline 进阶：多平台账号关联与自动化部署" target=_blank>Jenkins Pipeline 进阶：多平台账号关联与自动化部署</a></li><li><a href=https://blogs.xwnlearn.cn/post/2025/%E9%AB%98%E5%8F%AF%E7%94%A8harbor/ title=高可用harbor target=_blank>高可用harbor</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/%E5%BF%AB%E9%80%9F%E6%9E%84%E5%BB%BAZabbix7.0%E9%AB%98%E5%8F%AF%E7%94%A8%E7%9B%91%E6%8E%A7%E6%96%B9%E6%A1%88/ title=快速构建Zabbix7.0高可用监控方案 target=_blank>快速构建Zabbix7.0高可用监控方案</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/Microk8s%E9%83%A8%E7%BD%B2kubeflow/ title=Microk8s部署kubeflow target=_blank>Microk8s部署kubeflow</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/K8sGPT%E5%BA%94%E7%94%A8/ title=K8sGPT应用 target=_blank>K8sGPT应用</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/LocalAI-k8sgpt-operator/ title=LocalAI+k8sgpt-operator target=_blank>LocalAI+k8sgpt-operator</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/ApisixRoute%E9%85%8D%E7%BD%AE%E5%90%8E%E7%AB%AF%E8%B6%85%E6%97%B6%E6%97%B6%E9%97%B4/ title=ApisixRoute配置后端超时时间 target=_blank>ApisixRoute配置后端超时时间</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/apisix-ingress%E4%B8%8Eapisix%E7%9B%91%E6%8E%A7/ title=apisix-ingress与apisix监控 target=_blank>apisix-ingress与apisix监控</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Prometheus/ title=Prometheus target=_blank>Prometheus</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Telegram-bot/ title=Telegram-bot target=_blank>Telegram-bot</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/categories/>分类</a></h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/categories/CI/CD/>CI/CD (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Go%E8%AF%AD%E8%A8%80/>Go语言 (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Kubernetes/>Kubernetes (17)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Linux/>Linux (21)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件 (7)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库 (9)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E7%9B%91%E6%8E%A7/>监控 (5)</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/tags/>标签</a></h3><div class=tagcloud><a href=https://blogs.xwnlearn.cn/tags/Docker/>Docker</a>
+<a href=https://blogs.xwnlearn.cn/tags/Go%E8%AF%AD%E8%A8%80/>Go语言</a>
+<a href=https://blogs.xwnlearn.cn/tags/Jenkins/>Jenkins</a>
+<a href=https://blogs.xwnlearn.cn/tags/Kubernetes/>Kubernetes</a>
+<a href=https://blogs.xwnlearn.cn/tags/Linux/>Linux</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pipeline/>Pipeline</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pod/>Pod</a>
+<a href=https://blogs.xwnlearn.cn/tags/Prometheus/>Prometheus</a>
+<a href=https://blogs.xwnlearn.cn/tags/Service/>Service</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSH/>SSH</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSL/>SSL</a>
+<a href=https://blogs.xwnlearn.cn/tags/Zabbix/>Zabbix</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E5%AD%98%E5%82%A8/>存储</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E7%9B%91%E6%8E%A7/>监控</a></div></section><section class=widget><h3 class=widget-title>友情链接</h3><ul class=widget-list><li><a target=_blank href=https://www.liwenzhou.com/ title=李文周的博客>李文周的博客</a></li></ul></section><section class=widget><h3 class=widget-title>其它</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/index.xml>文章 RSS</a></li></ul></section></div></div></div></div></body></html>

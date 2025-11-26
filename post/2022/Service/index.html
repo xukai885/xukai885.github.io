@@ -1,0 +1,354 @@
+<!doctype html><html lang=zh-hans><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>Service | 徐同学的博客</title><meta property="og:title" content="Service - 徐同学的博客"><meta property="og:type" content="article"><meta property="article:published_time" content='2022-05-22T08:00:00+08:00'><meta property="article:modified_time" content='2022-05-22T08:00:00+08:00'><meta name=Keywords content="kubernetes,k8s,linux,运维,数据库,mysql,监控,CI/CD,jenkins,docker,go语言,技术博客"><meta name=description content="简述k8s中service模式类型"><meta name=author content="徐同学"><meta property="og:url" content="https://blogs.xwnlearn.cn/post/2022/Service/"><link rel="shortcut icon" href=/favicon.ico type=image/x-icon><link rel=icon href=/favicon.png type=image/png><link rel="alternate icon" href=/favicon.png type=image/svg+xml><link rel=stylesheet href=/css/normalize.css><link rel=stylesheet href=/css/style.css><script type=text/javascript src=//cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.min.js></script><link href=https://cdn.bootcdn.net/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css rel=stylesheet><link rel=stylesheet href=/css/douban.css><link rel=stylesheet href=/css/other.css></head><body><header id=header class=clearfix><div class=container><div class=col-group><div class=site-name><a id=logo href=https://blogs.xwnlearn.cn/>徐同学的博客</a><p class=description>宝剑锋从磨砺出，梅花香自苦寒来✌️</p></div><div><nav id=nav-menu class=clearfix><a class=current href=https://blogs.xwnlearn.cn/>首页</a>
+<a href=https://blogs.xwnlearn.cn/archives/ title=归档>归档</a>
+<a href=https://blogs.xwnlearn.cn/about/ title=关于>关于</a></nav></div></div></div></header><div id=body><div class=container><div class=col-group><div class=col-8 id=main><div class=res-cons><style type=text/css>.post-toc{position:fixed;width:200px;margin-left:-210px;padding:5px 10px;font-family:Athelas,STHeiti,Microsoft Yahei,serif;font-size:12px;border:1px solid rgba(0,0,0,7%);border-radius:5px;background-color:rgba(255,255,255,.98);background-clip:padding-box;-webkit-box-shadow:1px 1px 2px rgba(0,0,0,.125);box-shadow:1px 1px 2px rgba(0,0,0,.125);word-wrap:break-word;white-space:nowrap;-webkit-box-sizing:border-box;box-sizing:border-box;z-index:999;cursor:pointer;max-height:70%;overflow-y:auto;overflow-x:hidden}.post-toc .post-toc-title{width:100%;margin:0 auto;font-size:20px;font-weight:400;text-transform:uppercase;text-align:center}.post-toc .post-toc-content{font-size:15px}.post-toc .post-toc-content>nav>ul{margin:10px 0}.post-toc .post-toc-content ul{padding-left:20px;list-style:square;margin:.5em;line-height:1.8em}.post-toc .post-toc-content ul ul{padding-left:15px;display:none}@media print,screen and (max-width:1057px){.post-toc{display:none}}</style><div class=post-toc style=position:absolute;top:188px><h2 class=post-toc-title>文章目录</h2><div class=post-toc-content><nav id=TableOfContents><ul><li><a href=#service介绍>Service介绍</a><ul><li><a href=#userspace模式>userspace模式</a></li><li><a href=#iptables模式>iptables模式</a></li><li><a href=#ipvs模式>ipvs模式</a></li></ul></li><li><a href=#service类型>Service类型</a></li><li><a href=#service使用>Service使用</a><ul><li><a href=#cluster>Cluster</a></li><li><a href=#endpoint>Endpoint</a></li><li><a href=#负载分发策略>负载分发策略</a></li><li><a href=#headliness类型>HeadLiness类型</a></li><li><a href=#nodeport类型>NodePort类型</a></li><li><a href=#loadbalancer类型>LoadBalancer类型</a></li><li><a href=#externalname>ExternalName</a></li></ul></li><li><a href=#ingress介绍>Ingress介绍</a></li><li><a href=#ingress使用>Ingress使用</a><ul><li><a href=#环境准备>环境准备</a></li><li><a href=#http代理>Http代理</a></li><li><a href=#https代理>Https代理</a></li></ul></li></ul></nav></div></div><script type=text/javascript>$(document).ready(function(){if(e=$(".post-toc"),e.length){t=$("#main").offset().left,t<220&&e.css({width:t-10,"margin-left":0-t});var e,t,n=e.offset().top-20,s={start:{position:"absolute",top:n},process:{position:"fixed",top:20}};$(window).scroll(function(){var t=$(window).scrollTop();t<n?e.css(s.start):e.css(s.process)})}$("#TableOfContents").children().length<1&&$(".post-toc").remove()})</script><article class=post><header><h1 class=post-title>Service</h1></header><time datetime=2022-05-22T00:00:00Z class="post-meta meta-date dt-published">2022年5月22日</time><div class="post-meta meta-category"><span>&nbsp;|</span>
+<a href=/categories/Kubernetes target=_blank>Kubernetes</a></div><div class=clear style=display:none><div class=toc-article><div class=toc-title>文章目录</div></div></div><div class=post-content><h2 id=service介绍>Service介绍</h2><p>三种模式</p><h3 id=userspace模式>userspace模式</h3><blockquote><p>userspace模式，kube-proxy会为每一个Service创建一个监听端口，请求经过kube-proxy，相当于一个四层负责均衡器，kube-proxy运行在userspace中，在进行转发处理时会增加内核和用户空间之间的数据拷贝，虽然稳定，但是效率很低</p></blockquote><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/usersoace.png><img class=mx-auto alt=usersoace.png src=https://blog.xwnlearn.cn/api/v1/look_images/usersoace.png></a></p><h3 id=iptables模式>iptables模式</h3><blockquote><p>iptables模式下，kube-proxy为service后端每个pod创建对应的iptables规则，直接将发向Cluster IP的请求重定向到一个Pod IP
+该模式下kube-proxy不承担四层负载均衡器的作用，只负责创建iptables规则，较userspace模式效率更高，不能提供灵活的LB策略，当后端pod不可用时无法进行重试</p></blockquote><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/iptables.png><img class=mx-auto alt=iptables.png src=https://blog.xwnlearn.cn/api/v1/look_images/iptables.png></a></p><h3 id=ipvs模式>ipvs模式</h3><blockquote><p>ipvs模式和iptables类似，kube-proxy监控pod的变化并创建相应的ipvs规则，ipvs相对iptables转发效率更高，支持更多的LB算法</p></blockquote><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/ipvs.png><img class=mx-auto alt=ipvs.png src=https://blog.xwnlearn.cn/api/v1/look_images/ipvs.png>
+</a>ipvs必须安装ipvs内核，否则降级为iptables</p><pre tabindex=0><code>#开启ipvs
+root@101 ~]# kubectl edit cm kube-proxy -n kube-system
+     mode: &#34;ipvs&#34; #修改为ipvs
+[root@101 ~]# kubectl delete pod -l k8s-app=kube-proxy -n kube-system
+[root@101 ~]# ipvsadm -Ln #查看
+</code></pre><h2 id=service类型>Service类型</h2><p>Service资源清单</p><pre tabindex=0><code>apiVersion: v1 # 版本
+kind: Service # 类型
+metadata: # 元数据
+  name: # 资源名称
+  namespace: # 命名空间
+spec:
+  selector: # 标签选择器，用于确定当前Service代理那些Pod
+    app: nginx
+  type: NodePort # Service的类型，指定Service的访问方式
+  clusterIP: # 虚拟服务的IP地址
+  sessionAffinity: # session亲和性，支持ClientIP、None两个选项，默认值为None
+  ports: # 端口信息
+    - port: 8080 # Service端口
+      protocol: TCP # 协议
+      targetPort : # Pod端口
+      nodePort:  # 主机端口
+</code></pre><ul><li>ClusterIP：默认，kubernetes系统自动分配的虚拟ip，只能在集群内布访问</li><li>NodePort：将Service通过指定的Node上的端口暴露给外部</li><li>LoadBalancer：使用外接负载均衡器完成到服务的负载分发，此模式需要外部云环境支持</li><li>ExternalName：把集群外部的服务引入集群内部，直接使用</li></ul><h2 id=service使用>Service使用</h2><p>pod后端使用</p><pre tabindex=0><code>apiVersion: apps/v1 # 版本号
+kind: Deployment # 类型
+metadata: # 元数据
+  name: pc-deployment # deployment的名称
+  namespace: dev # 命名类型
+spec: # 详细描述
+  strategy: # 镜像更新策略
+    type: RollingUpdate # RollingUpdate：滚动更新，就是杀死一部分，就启动一部分，在更新过程中，存在两个版本的Pod
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  replicas: 4 # 副本数量
+  selector: # 选择器，通过它指定该控制器可以管理哪些Pod
+    matchLabels: # Labels匹配规则
+      app: nginx-pod
+  template: # 模块 当副本数据不足的时候，会根据下面的模板创建Pod副本
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+        - name: nginx # 容器名称
+          image: nginx:1.17.1 # 容器需要的镜像地址
+          ports:
+            - containerPort: 80 # 容器所监听的端口
+</code></pre><h3 id=cluster>Cluster</h3><pre tabindex=0><code>service-clusterip.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-clusterip
+  namespace: dev
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: # service的IP地址，如果不写，默认会生成一个
+  type: ClusterIP
+  ports:
+    - port: 80 # Service的端口
+      targetPort: 80 # Pod的端口
+      
+      
+      
+[root@101 ~]# kubectl get svc -n dev
+NAME                TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+service-clusterip   ClusterIP   10.103.248.92   &lt;none&gt;        80/TCP    11s
+[root@101 ~]# curl 10.103.248.92
+3
+[root@101 ~]# curl 10.103.248.92
+1
+[root@101 ~]# curl 10.103.248.92
+2
+</code></pre><h3 id=endpoint>Endpoint</h3><pre><code>Endpoint是由kubernetes中的一个资源对象存在在etcd中，用来记录一个service对应的所有pod的访问地址，他是根据service配置文件中的selector描述产生的
+一个service由一组pod组成，这些pod通过Endpoint暴露出来，**Endpoints是实际服务的端点集合**，service和pod之间是通过endpoints实现的
+</code></pre><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/endpoint.png><img class=mx-auto alt=endpoint.png src=https://blog.xwnlearn.cn/api/v1/look_images/endpoint.png></a></p><pre tabindex=0><code>[root@101 ~]# kubectl describe svc -n dev
+Name:              service-clusterip
+Namespace:         dev
+Labels:            &lt;none&gt;
+Annotations:       &lt;none&gt;
+Selector:          app=nginx-pod
+Type:              ClusterIP
+IP:                10.103.248.92
+Port:              &lt;unset&gt;  80/TCP
+TargetPort:        80/TCP
+Endpoints:         10.244.1.31:80,10.244.2.29:80,10.244.2.30:80
+Session Affinity:  None
+Events:            &lt;none&gt;
+
+[root@101 ~]# kubectl get endpoints -n dev
+NAME                ENDPOINTS                                      AGE
+service-clusterip   10.244.1.31:80,10.244.2.29:80,10.244.2.30:80   6m17s
+
+#查看ipvs规则
+[root@101 ~]# ipvsadm -Ln
+TCP  10.103.248.92:80 rr
+  -&gt; 10.244.1.31:80               Masq    1      0          0         
+  -&gt; 10.244.2.29:80               Masq    1      0          0         
+  -&gt; 10.244.2.30:80               Masq    1      0          0       
+</code></pre><h3 id=负载分发策略>负载分发策略</h3><ul><li>默认使用kube-proxy策略，随机，轮询</li><li>基于客户端地址的会话保持模式，同一个客户端发起的所有请求都会转发到固定的一个Pod上，此模式可以在spec添加 sessionAffinity:ClientIP选项</li></ul><pre tabindex=0><code>apiVersion: v1
+kind: Service
+metadata:
+  name: service-clusterip
+  namespace: dev
+spec:
+  sessionAffinity: ClientIP #添加亲和性
+  selector:
+    app: nginx-pod
+  clusterIP: # service的IP地址，如果不写，默认会生成一个
+  type: ClusterIP
+  ports:
+    - port: 80 # Service的端口
+      targetPort: 80 # Pod的端口
+#验证
+[root@101 ~]# kubectl get svc -n dev
+NAME                TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
+service-clusterip   ClusterIP   10.109.184.108   &lt;none&gt;        80/TCP    3s
+[root@101 ~]# 
+[root@101 ~]# 
+[root@101 ~]# curl 10.109.184.108
+3
+[root@101 ~]# curl 10.109.184.108
+3
+[root@101 ~]# curl 10.109.184.108
+3
+</code></pre><h3 id=headliness类型>HeadLiness类型</h3><pre tabindex=0><code>#创建headliness
+apiVersion: v1
+kind: Service
+metadata:
+  name: headliness
+  namespace: dev
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: None  # 创建headliness Service
+  type: ClusterIP
+  ports:
+    - port: 80 # Service的端口
+      targetPort: 80 # Pod的端口 
+#查看
+[root@101 ~]# dig @10.96.0.10 headliness.dev.svc.cluster.local |grep -Ev &#39;^$|^;&#39;
+headliness.dev.svc.cluster.local. 30 IN	A	10.244.2.30
+headliness.dev.svc.cluster.local. 30 IN	A	10.244.1.31
+headliness.dev.svc.cluster.local. 30 IN	A	10.244.2.29
+</code></pre><h3 id=nodeport类型>NodePort类型</h3><blockquote><p>NodePort是将service的端口映射到Node上的一个端口，通过NodeIPL:NodePort访问service</p></blockquote><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/NodePort.png><img class=mx-auto alt=NodePort.png src=https://blog.xwnlearn.cn/api/v1/look_images/NodePort.png></a></p><pre tabindex=0><code>apiVersion: v1
+kind: Service
+metadata:
+  name: service-nodeport
+  namespace: dev
+spec:
+  selector:
+    app: nginx-pod
+  type: NodePort # Service类型为NodePort
+  ports:
+    - port: 80 # Service的端口
+      targetPort: 80 # Pod的端口
+      nodePort: 30002 # 指定绑定的node的端口（默认取值范围是30000~32767），如果不指定，会默认分配
+</code></pre><h3 id=loadbalancer类型>LoadBalancer类型</h3><blockquote><p>LoadBalancer和NodePort相似，LoadBalancer会在集群外部在做一个负载均衡，这个设备需要外部环境支持，外部环境发送到这个设备上的请求会被设备负载之后转发到集群中</p></blockquote><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/LoadBalancer.png><img class=mx-auto alt=LoadBalancer.png src=https://blog.xwnlearn.cn/api/v1/look_images/LoadBalancer.png></a></p><h3 id=externalname>ExternalName</h3><pre tabindex=0><code>apiVersion: v1
+kind: Service
+metadata:
+  name: service-externalname
+  namespace: dev
+spec:
+  type: ExternalName # Service类型为ExternalName
+  externalName: www.baidu.com # 改成IP地址也可以
+  
+#域名解析
+dig @10.96.0.10 service-externalname.dev.svc.cluster.local
+</code></pre><h2 id=ingress介绍>Ingress介绍</h2><blockquote><p>NodePort:占用很多集群端口
+LoadBalancer:每个service需要一个LB，并且需要之外设备的支持</p></blockquote><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/Ingress.png><img class=mx-auto alt=Ingress.png src=https://blog.xwnlearn.cn/api/v1/look_images/Ingress.png></a></p><pre><code>Ingress相当与一个七层负载均衡器，是kubernetes对反向代理的一个抽象，他的工作原理类似与nginx，可以理解在Ingress里建立诸多映射规则，
+Ingress Controller通过监听这些配置规则并转换成nginx的反向代理配置，然后对外部提供服务。
+</code></pre><ul><li>ingress: kubernetes中的一个对象，作用是定义请求如何转发到service的规则</li><li>ingress controller: 具体实现反向代理及负载均衡的程序，对ingress定义的规则进行解析，根据配置的规则来实现请求转发，实现方式有很多，如nginx，contour，haproxy</li></ul><p>Ingress（nginx为例）工作原理</p><ul><li>用户编写ingress规则，说明哪个域名对象集群中的哪个service</li><li>ingress控制器动态感知ingress服务规则的变换，生成一段对应的nginx配置</li><li>ingress控制器将生成的nginx配置写入到一个运行的nginx服务中，并动态更新</li><li>到此为止
+<a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/Ingress1.png><img class=mx-auto alt=Ingress1.png src=https://blog.xwnlearn.cn/api/v1/look_images/Ingress1.png></a></li></ul><h2 id=ingress使用>Ingress使用</h2><h3 id=环境准备>环境准备</h3><h4 id=安装ingress-nginx-v030>安装ingress-nginx v:0.30</h4><pre tabindex=0><code>wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/mandatory.yaml
+wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/provider/baremetal/service-nodeport.yaml
+#创建ingress-nginx
+[root@101 ingress]# kubectl apply -f ./
+#查看详情
+[root@101 ingress]# kubectl get pods,svc -n ingress-nginx
+NAME                                            READY   STATUS    RESTARTS   AGE
+pod/nginx-ingress-controller-7f74f657bd-x7ghp   1/1     Running   0          16s
+NAME                    TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
+service/ingress-nginx   NodePort   10.98.139.205   &lt;none&gt;        80:31049/TCP,443:32215/TCP   16s
+</code></pre><h4 id=准备service-pod>准备service pod</h4><p>nginx-tomcat.yaml</p><pre tabindex=0><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: dev
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.17.1
+        ports:
+        - containerPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tomcat-deployment
+  namespace: dev
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tomcat-pod
+  template:
+    metadata:
+      labels:
+        app: tomcat-pod
+    spec:
+      containers:
+      - name: tomcat
+        image: tomcat:8.5-jre10-slim
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: dev
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tomcat-service
+  namespace: dev
+spec:
+  selector:
+    app: tomcat-pod
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+</code></pre><pre tabindex=0><code>#查看
+[root@101 ~]# kubectl get pods,svc -n dev
+NAME                                     READY   STATUS    RESTARTS   AGE
+pod/nginx-deployment-6696798b78-d54fc    1/1     Running   0          2m12s
+pod/nginx-deployment-6696798b78-nlkj4    1/1     Running   0          2m12s
+pod/nginx-deployment-6696798b78-zxxsf    1/1     Running   0          2m12s
+pod/tomcat-deployment-58467d5474-9gtpb   1/1     Running   0          2m12s
+pod/tomcat-deployment-58467d5474-fwhjq   1/1     Running   0          2m12s
+pod/tomcat-deployment-58467d5474-lzxfb   1/1     Running   0          2m12s
+NAME                     TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
+service/nginx-service    ClusterIP   None         &lt;none&gt;        80/TCP     2m12s
+service/tomcat-service   ClusterIP   None         &lt;none&gt;        8080/TCP   2m12s
+</code></pre><h3 id=http代理>Http代理</h3><pre tabindex=0><code>apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-http
+  namespace: dev
+spec:
+  rules:
+  - host: nginx.test.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: nginx-service
+          servicePort: 80
+  - host: tomcat.test.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: tomcat-service
+          servicePort: 8080
+#查看
+[root@101 ~]# kubectl get ing -n dev
+NAME           HOSTS                            ADDRESS         PORTS   AGE
+ingress-http   nginx.test.com,tomcat.test.com   10.98.139.205   80      6m20s
+</code></pre><pre tabindex=0><code>修改主机hosts即可访问服务
+</code></pre><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/nginx-tomcat.png><img class=mx-auto alt=nginx-tomcat.png src=https://blog.xwnlearn.cn/api/v1/look_images/nginx-tomcat.png></a></p><h3 id=https代理>Https代理</h3><pre tabindex=0><code>#生成证书
+openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj &#34;/C=CN/ST=BJ/L=BJ/O=nginx/CN=test.com&#34;
+#创建密钥
+kubectl create secret tls tls-secret --key tls.key --cert tls.crt
+ingress-https.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-https
+  namespace: dev
+spec:
+  tls:
+    - hosts:
+      - nginx.test.com
+      - tomcat.test.com
+      secretName: tls-secret # 指定秘钥
+  rules:
+  - host: nginx.test.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: nginx-service
+          servicePort: 80
+  - host: tomcat.test.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: tomcat-service
+          servicePort: 8080
+[root@101 ~]# kubectl get ing -n dev
+NAME            HOSTS                            ADDRESS         PORTS     AGE
+ingress-http    nginx.test.com,tomcat.test.com   10.98.139.205   80        17m
+ingress-https   nginx.test.com,tomcat.test.com   10.98.139.205   80, 443   5m37s
+[root@101 ~]# kubectl get svc -n ingress-nginx
+NAME            TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
+ingress-nginx   NodePort   10.98.139.205   &lt;none&gt;        80:31049/TCP,443:32215/TCP   30m
+![ingress-https.png](https://blog.xwnlearn.cn/api/v1/look_images/ingress-https.png)
+</code></pre></div><div class=post-archive><ul class=post-copyright><li><strong>原文作者：</strong><a rel=author href=https://blogs.xwnlearn.cn/>徐同学的博客</a></li><li style=word-break:break-all><strong>原文链接：</strong><a href=https://blogs.xwnlearn.cn/post/2022/Service/>https://blogs.xwnlearn.cn/post/2022/Service/</a></li><li><strong>版权声明：</strong>本作品采用<a rel=license href=https://creativecommons.org/licenses/by-nc-nd/4.0/>知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议</a>. 进行许可，非商业转载请注明出处（作者，原文链接），商业转载请联系作者获得授权。</li></ul></div><br><div class="post-meta meta-tags"><ul class=clearfix><li><a href=/tags/Service target=_blank>Service</a></li></ul></div></article><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//yourdiscussshortname.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a><div class="post bg-white"><script src=https://utteranc.es/client.js repo="your github repo" issue-term=pathname theme=github-light crossorigin=anonymous async></script></div></div><footer id=footer><div>&copy; 2025 <a href=https://blogs.xwnlearn.cn/>徐同学的博客 By 徐同学</a>
+| <a rel=nofollow target=_blank href=http://beian.miit.gov.cn/>皖ICP备2020020988号-1</a> | <a href=https://gohugo.io/ target=_black rel=nofollow><span class=badge-subject>Powered by</span><span class="badge-value bg-blue">Hugo</span></a> | <a href=https://github.com/flysnow-org/maupassant-hugo target=_black><span class=badge-subject>Theme</span><span class="badge-value bg-yellowgreen">Maupassant</span></a></div></footer><script type=text/javascript>window.MathJax={tex2jax:{inlineMath:[["$","$"]],processEscapes:!0}}</script><script src='//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script><script src=//cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js></script><a id=rocket href=#top></a><script type=text/javascript src='/js/totop.js?v=0.0.0' async></script><style type=text/css>div.highlight{position:relative;margin:1em 0}.copy-code{display:none;position:absolute;top:4px;right:4px;color:rgba(255,255,255,.8);background:rgba(78,78,78,.8);border-radius:var(--radius);padding:0 5px;font:inherit;user-select:none;cursor:pointer;border:0;--radius:8px}div.highlight:hover .copy-code,pre:hover .copy-code{display:block}</style><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script><script src=/js/douban.js></script></div><div id=secondary><section class=widget><form id=search action=https://blogs.xwnlearn.cn/search method=get accept-charset=utf-8 target=_blank _lpchecked=1><input type=text name=q maxlength=20 placeholder=Search>
+<input type=hidden name=sitesearch value=https://blogs.xwnlearn.cn/>
+<button type=submit class="submit icon-search"></button></form></section><section class=widget><h3 class=widget-title>最近文章</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/ title="Jenkins Pipeline 进阶：多平台账号关联与自动化部署" target=_blank>Jenkins Pipeline 进阶：多平台账号关联与自动化部署</a></li><li><a href=https://blogs.xwnlearn.cn/post/2025/%E9%AB%98%E5%8F%AF%E7%94%A8harbor/ title=高可用harbor target=_blank>高可用harbor</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/%E5%BF%AB%E9%80%9F%E6%9E%84%E5%BB%BAZabbix7.0%E9%AB%98%E5%8F%AF%E7%94%A8%E7%9B%91%E6%8E%A7%E6%96%B9%E6%A1%88/ title=快速构建Zabbix7.0高可用监控方案 target=_blank>快速构建Zabbix7.0高可用监控方案</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/Microk8s%E9%83%A8%E7%BD%B2kubeflow/ title=Microk8s部署kubeflow target=_blank>Microk8s部署kubeflow</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/K8sGPT%E5%BA%94%E7%94%A8/ title=K8sGPT应用 target=_blank>K8sGPT应用</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/LocalAI-k8sgpt-operator/ title=LocalAI+k8sgpt-operator target=_blank>LocalAI+k8sgpt-operator</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/ApisixRoute%E9%85%8D%E7%BD%AE%E5%90%8E%E7%AB%AF%E8%B6%85%E6%97%B6%E6%97%B6%E9%97%B4/ title=ApisixRoute配置后端超时时间 target=_blank>ApisixRoute配置后端超时时间</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/apisix-ingress%E4%B8%8Eapisix%E7%9B%91%E6%8E%A7/ title=apisix-ingress与apisix监控 target=_blank>apisix-ingress与apisix监控</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Prometheus/ title=Prometheus target=_blank>Prometheus</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Telegram-bot/ title=Telegram-bot target=_blank>Telegram-bot</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/categories/>分类</a></h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/categories/CI/CD/>CI/CD (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Go%E8%AF%AD%E8%A8%80/>Go语言 (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Kubernetes/>Kubernetes (17)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Linux/>Linux (21)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件 (7)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库 (9)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E7%9B%91%E6%8E%A7/>监控 (5)</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/tags/>标签</a></h3><div class=tagcloud><a href=https://blogs.xwnlearn.cn/tags/Docker/>Docker</a>
+<a href=https://blogs.xwnlearn.cn/tags/Go%E8%AF%AD%E8%A8%80/>Go语言</a>
+<a href=https://blogs.xwnlearn.cn/tags/Jenkins/>Jenkins</a>
+<a href=https://blogs.xwnlearn.cn/tags/Kubernetes/>Kubernetes</a>
+<a href=https://blogs.xwnlearn.cn/tags/Linux/>Linux</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pipeline/>Pipeline</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pod/>Pod</a>
+<a href=https://blogs.xwnlearn.cn/tags/Prometheus/>Prometheus</a>
+<a href=https://blogs.xwnlearn.cn/tags/Service/>Service</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSH/>SSH</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSL/>SSL</a>
+<a href=https://blogs.xwnlearn.cn/tags/Zabbix/>Zabbix</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E5%AD%98%E5%82%A8/>存储</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E7%9B%91%E6%8E%A7/>监控</a></div></section><section class=widget><h3 class=widget-title>友情链接</h3><ul class=widget-list><li><a target=_blank href=https://www.liwenzhou.com/ title=李文周的博客>李文周的博客</a></li></ul></section><section class=widget><h3 class=widget-title>其它</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/index.xml>文章 RSS</a></li></ul></section></div></div></div></div></body></html>

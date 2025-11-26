@@ -1,0 +1,765 @@
+<!doctype html><html lang=zh-hans><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>MySQL-MHA高可用VIP设置 | 徐同学的博客</title><meta property="og:title" content="MySQL-MHA高可用VIP设置 - 徐同学的博客"><meta property="og:type" content="article"><meta property="article:published_time" content='2021-05-07T08:00:00+08:00'><meta property="article:modified_time" content='2021-05-07T08:00:00+08:00'><meta name=Keywords content="kubernetes,k8s,linux,运维,数据库,mysql,监控,CI/CD,jenkins,docker,go语言,技术博客"><meta name=description content="目前MySQL高可用架构方案中比较成熟与常见的方案"><meta name=author content="徐同学"><meta property="og:url" content="https://blogs.xwnlearn.cn/post/2021/MySQL-MHA%E9%AB%98%E5%8F%AF%E7%94%A8VIP%E8%AE%BE%E7%BD%AE/"><link rel="shortcut icon" href=/favicon.ico type=image/x-icon><link rel=icon href=/favicon.png type=image/png><link rel="alternate icon" href=/favicon.png type=image/svg+xml><link rel=stylesheet href=/css/normalize.css><link rel=stylesheet href=/css/style.css><script type=text/javascript src=//cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.min.js></script><link href=https://cdn.bootcdn.net/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css rel=stylesheet><link rel=stylesheet href=/css/douban.css><link rel=stylesheet href=/css/other.css></head><body><header id=header class=clearfix><div class=container><div class=col-group><div class=site-name><a id=logo href=https://blogs.xwnlearn.cn/>徐同学的博客</a><p class=description>宝剑锋从磨砺出，梅花香自苦寒来✌️</p></div><div><nav id=nav-menu class=clearfix><a class=current href=https://blogs.xwnlearn.cn/>首页</a>
+<a href=https://blogs.xwnlearn.cn/archives/ title=归档>归档</a>
+<a href=https://blogs.xwnlearn.cn/about/ title=关于>关于</a></nav></div></div></div></header><div id=body><div class=container><div class=col-group><div class=col-8 id=main><div class=res-cons><style type=text/css>.post-toc{position:fixed;width:200px;margin-left:-210px;padding:5px 10px;font-family:Athelas,STHeiti,Microsoft Yahei,serif;font-size:12px;border:1px solid rgba(0,0,0,7%);border-radius:5px;background-color:rgba(255,255,255,.98);background-clip:padding-box;-webkit-box-shadow:1px 1px 2px rgba(0,0,0,.125);box-shadow:1px 1px 2px rgba(0,0,0,.125);word-wrap:break-word;white-space:nowrap;-webkit-box-sizing:border-box;box-sizing:border-box;z-index:999;cursor:pointer;max-height:70%;overflow-y:auto;overflow-x:hidden}.post-toc .post-toc-title{width:100%;margin:0 auto;font-size:20px;font-weight:400;text-transform:uppercase;text-align:center}.post-toc .post-toc-content{font-size:15px}.post-toc .post-toc-content>nav>ul{margin:10px 0}.post-toc .post-toc-content ul{padding-left:20px;list-style:square;margin:.5em;line-height:1.8em}.post-toc .post-toc-content ul ul{padding-left:15px;display:none}@media print,screen and (max-width:1057px){.post-toc{display:none}}</style><div class=post-toc style=position:absolute;top:188px><h2 class=post-toc-title>文章目录</h2><div class=post-toc-content><nav id=TableOfContents><ul><li><a href=#mha简介>MHA简介</a></li><li><a href=#部署>部署</a></li></ul></nav></div></div><script type=text/javascript>$(document).ready(function(){if(e=$(".post-toc"),e.length){t=$("#main").offset().left,t<220&&e.css({width:t-10,"margin-left":0-t});var e,t,n=e.offset().top-20,s={start:{position:"absolute",top:n},process:{position:"fixed",top:20}};$(window).scroll(function(){var t=$(window).scrollTop();t<n?e.css(s.start):e.css(s.process)})}$("#TableOfContents").children().length<1&&$(".post-toc").remove()})</script><article class=post><header><h1 class=post-title>MySQL-MHA高可用VIP设置</h1></header><time datetime=2021-05-07T00:00:00Z class="post-meta meta-date dt-published">2021年5月7日</time><div class="post-meta meta-category"><span>&nbsp;|</span>
+<a href=/categories/%E6%95%B0%E6%8D%AE%E5%BA%93 target=_blank>数据库</a></div><div class=clear style=display:none><div class=toc-article><div class=toc-title>文章目录</div></div></div><div class=post-content><blockquote><p>MHA（master high availability）是目前MySQL高可用架构方案中比较成熟与常见的方案。在mysql的故障切换过程中，MHA能够快速的自动的切换，最大程度的保持主从数据库的一致性。</p></blockquote><h2 id=mha简介>MHA简介</h2><p>MHA由两部分组成：MHA Manager（管理节点）与MHA Node（数据节点）
+MHA Manager工具命令</p><table><thead><tr><th>工具命令</th><th>说明</th></tr></thead><tbody><tr><td>masterha_check_ssh</td><td>检查SSH免密登陆</td></tr><tr><td>masterha_check_repl</td><td>检查MySQL主从同步状态</td></tr><tr><td>masterha_check_status</td><td>检查MHA运行状态</td></tr><tr><td>masterha_manager</td><td>启动MHA</td></tr><tr><td>masterha_master_monitor</td><td>检查master是否有故障</td></tr><tr><td>masterha_master_switch</td><td>手工转移故障</td></tr><tr><td>masterha_conf_host</td><td>手工添加server信息</td></tr><tr><td>mastarha_secondary_check</td><td>从远程服务器建立TCP连接</td></tr><tr><td>masterha_stop</td><td>停止MHA</td></tr></tbody></table><h2 id=部署>部署</h2><p>环境
+master 192.168.1.100 主
+slave 192.168.1.107 备master
+slave 192.168.1.108
+manager 192.168.1.101</p><p>1.数据库配置好主从</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">26
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>*************************** 1. row ***************************
+</span></span><span style=display:flex><span>               Slave_IO_State: Waiting <span style=color:#ff7b72>for</span> master to send event
+</span></span><span style=display:flex><span>                  Master_Host: 192.168.1.100
+</span></span><span style=display:flex><span>                  Master_User: slave
+</span></span><span style=display:flex><span>                  Master_Port: <span style=color:#a5d6ff>3306</span>
+</span></span><span style=display:flex><span>                Connect_Retry: <span style=color:#a5d6ff>30</span>
+</span></span><span style=display:flex><span>              Master_Log_File: mysql-bin.000011
+</span></span><span style=display:flex><span>          Read_Master_Log_Pos: <span style=color:#a5d6ff>154</span>
+</span></span><span style=display:flex><span>               Relay_Log_File: mysql-107-relay-bin.000003
+</span></span><span style=display:flex><span>                Relay_Log_Pos: <span style=color:#a5d6ff>320</span>
+</span></span><span style=display:flex><span>        Relay_Master_Log_File: mysql-bin.000011
+</span></span><span style=display:flex><span>             Slave_IO_Running: Yes
+</span></span><span style=display:flex><span>            Slave_SQL_Running: Yes
+</span></span><span style=display:flex><span>*************************** 1. row ***************************
+</span></span><span style=display:flex><span>               Slave_IO_State: Waiting <span style=color:#ff7b72>for</span> master to send event
+</span></span><span style=display:flex><span>                  Master_Host: 192.168.1.100
+</span></span><span style=display:flex><span>                  Master_User: slave
+</span></span><span style=display:flex><span>                  Master_Port: <span style=color:#a5d6ff>3306</span>
+</span></span><span style=display:flex><span>                Connect_Retry: <span style=color:#a5d6ff>30</span>
+</span></span><span style=display:flex><span>              Master_Log_File: mysql-bin.000011
+</span></span><span style=display:flex><span>          Read_Master_Log_Pos: <span style=color:#a5d6ff>154</span>
+</span></span><span style=display:flex><span>               Relay_Log_File: mysql-108-relay-bin.000002
+</span></span><span style=display:flex><span>                Relay_Log_Pos: <span style=color:#a5d6ff>320</span>
+</span></span><span style=display:flex><span>        Relay_Master_Log_File: mysql-bin.000011
+</span></span><span style=display:flex><span>             Slave_IO_Running: Yes
+</span></span><span style=display:flex><span>            Slave_SQL_Running: Yes
+</span></span></code></pre></td></tr></table></div></div><p>备master同时也要开启binlog</p><p>2.配置host文件</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">4
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>192.168.1.100 mysql-100
+</span></span><span style=display:flex><span>192.168.1.107 mysql-107
+</span></span><span style=display:flex><span>192.168.1.108 mysql-108
+</span></span><span style=display:flex><span>192.168.1.101 manager
+</span></span></code></pre></td></tr></table></div></div><p>3.配置ssh免密</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">24
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># ssh-keygen -t dsa</span>
+</span></span><span style=display:flex><span>Generating public/private dsa key pair.
+</span></span><span style=display:flex><span>Enter file in which to save the key <span style=color:#ff7b72;font-weight:700>(</span>/root/.ssh/id_dsa<span style=color:#ff7b72;font-weight:700>)</span>: 
+</span></span><span style=display:flex><span>Enter passphrase <span style=color:#ff7b72;font-weight:700>(</span>empty <span style=color:#ff7b72>for</span> no passphrase<span style=color:#ff7b72;font-weight:700>)</span>: 
+</span></span><span style=display:flex><span>Enter same passphrase again: 
+</span></span><span style=display:flex><span>Your identification has been saved in /root/.ssh/id_dsa.
+</span></span><span style=display:flex><span>Your public key has been saved in /root/.ssh/id_dsa.pub.
+</span></span><span style=display:flex><span>The key fingerprint is:
+</span></span><span style=display:flex><span>SHA256:yaE5BRw4flvDpcRmyVbtBpBjLW8xlOvxZ41VwCQNLzk root@101
+</span></span><span style=display:flex><span>The key<span style=color:#f85149>&#39;</span>s randomart image is:
+</span></span><span style=display:flex><span>+---<span style=color:#ff7b72;font-weight:700>[</span>DSA 1024<span style=color:#ff7b72;font-weight:700>]</span>----+
+</span></span><span style=display:flex><span>|     oo+.Booo<span style=color:#ff7b72;font-weight:700>=</span>o. |
+</span></span><span style=display:flex><span>|    o ..&amp; B .+o .|
+</span></span><span style=display:flex><span>|   . . Bo* *E . .|
+</span></span><span style=display:flex><span>|    . .<span style=color:#ff7b72;font-weight:700>==</span><span style=color:#79c0ff>o</span><span style=color:#ff7b72;font-weight:700>=</span> oo  .|
+</span></span><span style=display:flex><span>|     .+oS+ +   + |
+</span></span><span style=display:flex><span>|      ..  . . + .|
+</span></span><span style=display:flex><span>|             o   |
+</span></span><span style=display:flex><span>|                 |
+</span></span><span style=display:flex><span>|                 |
+</span></span><span style=display:flex><span>+----<span style=color:#ff7b72;font-weight:700>[</span>SHA256<span style=color:#ff7b72;font-weight:700>]</span>-----+
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># ssh-copy-id root@192.168.1.100</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># ssh-copy-id root@192.168.1.107</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># ssh-copy-id root@192.168.1.108</span>
+</span></span></code></pre></td></tr></table></div></div><p>4.所有节点安装依赖包</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># wget -O /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-7.repo		#配置阿里epel包</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># yum install -y perl-DBD-MySQL perl-Config-Tiny perl-Log-Dispatch perl-Parallel-ForkManager perl-Time-HiRes		#安装依赖</span>
+</span></span></code></pre></td></tr></table></div></div><p>5.安装node，管理节点（也可以下载tar.gz编译安装）</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">5
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># wget https://github.com/yoshinorim/mha4mysql-node/releases/download/v0.58/mha4mysql-node-0.58-0.el7.centos.noarch.rpm</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># wget https://github.com/yoshinorim/mha4mysql-manager/releases/download/v0.58/mha4mysql-manager-0.58-0.el7.centos.noarch.rpm</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># rpm -ivh mha4mysql-manager-0.58-0.el7.centos.noarch.rpm</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># rpm -ivh mha4mysql-node-0.58-0.el7.centos.noarch.rpm </span>
+</span></span><span style=display:flex><span>管理只需要manager安装即可
+</span></span></code></pre></td></tr></table></div></div><p>6.配置MHA管理账户并授权</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>grant all privileges on *.* to <span style=color:#a5d6ff>&#39;mha&#39;</span>@<span style=color:#a5d6ff>&#39;192.168.1.%&#39;</span> identified by <span style=color:#a5d6ff>&#39;Xk321&#39;</span>;
+</span></span></code></pre></td></tr></table></div></div><p>7.修改配置MHA配置文件</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">8
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 mha4mysql-manager-0.58<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cp -ra /root/mha4mysql-manager-0.58/samples/scripts/ /usr/local/bin</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 mha4mysql-manager-0.58<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cp /usr/local/bin/scripts/master_ip_failover /usr/local/bin</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 scripts<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cd /usr/local/bin/scripts/</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 scripts<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cp master_ip_online_change /usr/local/bin/</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 scripts<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cp send_report /usr/local/</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 scripts<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># mkdir /etc/masterha</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 scripts<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cp /root/mha4mysql-manager-0.58/samples/conf/app1.cnf /etc/masterha/</span>
+</span></span></code></pre></td></tr></table></div></div><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">29
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 mha<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cat conf/mha.cnf </span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>server default<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#a5d6ff>```</span>shell
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cat /etc/masterha/app1.cnf </span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>server default<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>manager_log</span><span style=color:#ff7b72;font-weight:700>=</span>/var/log/masterha/app1/manager.log		<span style=color:#8b949e;font-style:italic>#MHA日志目录</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>manager_workdir</span><span style=color:#ff7b72;font-weight:700>=</span>/var/log/masterha/app1		<span style=color:#8b949e;font-style:italic>#MHA工作日志目录</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>master_binlog_dir</span><span style=color:#ff7b72;font-weight:700>=</span>/data/mysql/		<span style=color:#8b949e;font-style:italic>#MHA保存主库binlog日志的目录</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>master_ip_failover_script</span><span style=color:#ff7b72;font-weight:700>=</span>/usr/local/bin/master_ip_failover
+</span></span><span style=display:flex><span><span style=color:#79c0ff>master_ip_online_change_script</span><span style=color:#ff7b72;font-weight:700>=</span>/usr/local/bin/master_ip_online_change
+</span></span><span style=display:flex><span><span style=color:#79c0ff>password</span><span style=color:#ff7b72;font-weight:700>=</span>Xk321		<span style=color:#8b949e;font-style:italic>#MHA管理用户密码</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>ping_interval</span><span style=color:#ff7b72;font-weight:700>=</span>1		<span style=color:#8b949e;font-style:italic>#用于检测master是否正常状态</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>remote_workdir</span><span style=color:#ff7b72;font-weight:700>=</span>/tmp
+</span></span><span style=display:flex><span><span style=color:#79c0ff>repl_password</span><span style=color:#ff7b72;font-weight:700>=</span>Xk321		<span style=color:#8b949e;font-style:italic>#主从复制用户密码</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>repl_user</span><span style=color:#ff7b72;font-weight:700>=</span>slave		<span style=color:#8b949e;font-style:italic>#主从复制的用户</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>secondary_check_script</span><span style=color:#ff7b72;font-weight:700>=</span>/usr/local/bin/masterha_secondary_check -s 192.168.1.107 -s 192.168.1.108
+</span></span><span style=display:flex><span><span style=color:#79c0ff>ssh_user</span><span style=color:#ff7b72;font-weight:700>=</span>root		<span style=color:#8b949e;font-style:italic>#远程登陆的用户</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>user</span><span style=color:#ff7b72;font-weight:700>=</span>mha		<span style=color:#8b949e;font-style:italic>#MHA管理用户</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>server1<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>hostname</span><span style=color:#ff7b72;font-weight:700>=</span>192.168.1.100
+</span></span><span style=display:flex><span><span style=color:#79c0ff>port</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>3306</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>server2<span style=color:#ff7b72;font-weight:700>]</span>		<span style=color:#8b949e;font-style:italic>#主机标签</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>candidate_master</span><span style=color:#ff7b72;font-weight:700>=</span>1		<span style=color:#8b949e;font-style:italic>#当主库故障，优先成为主库</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>check_repl_delay</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>0</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>hostname</span><span style=color:#ff7b72;font-weight:700>=</span>192.168.1.107		<span style=color:#8b949e;font-style:italic>#用户名</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>port</span><span style=color:#ff7b72;font-weight:700>=</span>3306		<span style=color:#8b949e;font-style:italic>#端口号</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>server3<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>hostname</span><span style=color:#ff7b72;font-weight:700>=</span>192.168.1.108
+</span></span><span style=display:flex><span><span style=color:#79c0ff>port</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>3306</span>
+</span></span></code></pre></td></tr></table></div></div><pre tabindex=0><code>8.master_ip_failover配置
+```shell
+```shell
+#!/usr/bin/env perl
+use strict;
+use warnings FATAL =&gt; &#39;all&#39;;
+use Getopt::Long;
+my (
+$command, $ssh_user, $orig_master_host, $orig_master_ip,
+$orig_master_port, $new_master_host, $new_master_ip, $new_master_port
+);
+######################################################################
+my $vip = &#39;192.168.1.111&#39;;
+my $brdc = &#39;192.168.1.255&#39;;
+my $ifdev = &#39;ens192&#39;;
+my $key = &#39;1&#39;;
+my $ssh_start_vip = &#34;/sbin/ifconfig ens192:$key $vip&#34;;
+my $ssh_stop_vip = &#34;/sbin/ifconfig ens192:$key down&#34;;
+my $exit_code = 0;
+#my $ssh_start_vip = &#34;/usr/sbin/ip addr add $vip/24 brd $brdc dev $ifdev label $ifdev:$key;/usr/sbin/arping -q -A -c 1 -I $ifdev $vip;iptables -F;&#34;;
+#my $ssh_stop_vip = &#34;/usr/sbin/ip addr del $vip/24 dev $ifdev label $ifdev:$key&#34;;
+############################################################################
+GetOptions(
+&#39;command=s&#39; =&gt; \$command,
+&#39;ssh_user=s&#39; =&gt; \$ssh_user,
+&#39;orig_master_host=s&#39; =&gt; \$orig_master_host,
+&#39;orig_master_ip=s&#39; =&gt; \$orig_master_ip,
+&#39;orig_master_port=i&#39; =&gt; \$orig_master_port,
+&#39;new_master_host=s&#39; =&gt; \$new_master_host,
+&#39;new_master_ip=s&#39; =&gt; \$new_master_ip,
+&#39;new_master_port=i&#39; =&gt; \$new_master_port,
+);
+exit &amp;main();
+sub main {
+print &#34;\n\nIN SCRIPT TEST====$ssh_stop_vip==$ssh_start_vip===\n\n&#34;;
+if ( $command eq &#34;stop&#34; || $command eq &#34;stopssh&#34; ) {
+my $exit_code = 1;
+eval {
+print &#34;Disabling the VIP on old master: $orig_master_host \n&#34;;
+&amp;stop_vip();
+$exit_code = 0;
+};
+if ($@) {
+warn &#34;Got Error: $@\n&#34;;
+exit $exit_code;
+}
+exit $exit_code;
+}
+elsif ( $command eq &#34;start&#34; ) {
+my $exit_code = 10;
+eval {
+print &#34;Enabling the VIP - $vip on the new master - $new_master_host \n&#34;;
+&amp;start_vip();
+$exit_code = 0;
+};
+if ($@) {
+warn $@;
+exit $exit_code;
+}
+exit $exit_code;
+}
+elsif ( $command eq &#34;status&#34; ) {
+print &#34;Checking the Status of the script.. OK \n&#34;;
+exit 0;
+}
+else {
+&amp;usage();
+exit 1;
+}
+}
+sub start_vip() {
+`ssh $ssh_user\@$new_master_host \&#34; $ssh_start_vip \&#34;`;
+}
+# A simple system call that disable the VIP on the old_master
+sub stop_vip() {
+`ssh $ssh_user\@$orig_master_host \&#34; $ssh_stop_vip \&#34;`;
+}
+sub usage {
+print
+&#34;Usage: master_ip_failover --command=start|stop|stopssh|status --orig_master_host=host --orig_master_ip=ip --orig_master_port=port --new_master_host=host --new_master_ip=ip --new_master_port=port\n&#34;;
+}
+</code></pre><pre tabindex=0><code>9.检测
+```shell
+[root@101 ~]# masterha_check_ssh -conf=/etc/masterha/app1.cnf 		#检测ssh免密连接情况
+Fri May  7 21:45:37 2021 - [warning] Global configuration file /etc/masterha_default.cnf not found. Skipping.
+Fri May  7 21:45:37 2021 - [info] Reading application default configuration from /etc/masterha/app1.cnf..
+Fri May  7 21:45:37 2021 - [info] Reading server configuration from /etc/masterha/app1.cnf..
+Fri May  7 21:45:37 2021 - [info] Starting SSH connection tests..
+Fri May  7 21:45:38 2021 - [debug] 
+Fri May  7 21:45:37 2021 - [debug]  Connecting via SSH from root@192.168.1.107(192.168.1.107:22) to root@192.168.1.108(192.168.1.108:22)..
+Fri May  7 21:45:37 2021 - [debug]   ok.
+Fri May  7 21:45:38 2021 - [debug] 
+Fri May  7 21:45:38 2021 - [debug]  Connecting via SSH from root@192.168.1.108(192.168.1.108:22) to root@192.168.1.107(192.168.1.107:22)..
+Fri May  7 21:45:38 2021 - [debug]   ok.
+Fri May  7 21:45:38 2021 - [info] All SSH connection tests passed successfully.
+......
+Thu May  6 23:00:06 2021 - [info] All SSH connection tests passed successfully.
+[root@101 mha]# masterha_check_repl -conf=/etc/masterha/app1.cnf		#检测主从同步状态
+......
+mysql-100(192.168.1.100:3306) (current master)
+ +--mysql-107(192.168.1.107:3306)
+ +--mysql-108(192.168.1.108:3306)
+ ......
+ MySQL Replication Health is OK.
+</code></pre><p>10.在master手动创建VIP</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># ifconfig ens192:1 192.168.1.111</span>
+</span></span></code></pre></td></tr></table></div></div><p>11.开启</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 mha<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># nohup masterha_manager --conf=/etc/masterha/app1.cnf  --remove_dead_master_conf --ignore_last_failover &lt; /dev/null &gt; /var/log/masterha/app1/manager.log 2&gt;&amp;1 &amp;</span>
+</span></span></code></pre></td></tr></table></div></div><p>12.测试</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 71
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 72
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 73
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 74
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 75
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 76
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 77
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 78
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 79
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 80
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 81
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 82
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 83
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 84
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 85
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 86
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 87
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 88
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 89
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 90
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 91
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 92
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 93
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 94
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 95
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 96
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 97
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 98
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 99
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">100
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">101
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">102
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">103
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">104
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">105
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">106
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">107
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">108
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">109
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">110
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">111
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">112
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">113
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">114
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">115
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">116
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">117
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">118
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">119
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">120
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">121
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">122
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">123
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">124
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">125
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">126
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">127
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">128
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">129
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">130
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">131
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">132
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">133
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">134
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">135
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">136
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">137
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">138
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">139
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">140
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">141
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">142
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">143
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">144
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">145
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">146
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">147
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">148
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">149
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">150
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">151
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">152
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">153
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">154
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">155
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">156
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">157
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">158
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">159
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">160
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">161
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">162
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">163
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">164
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">165
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">166
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">167
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">168
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">169
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">170
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">171
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">172
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">173
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">174
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">175
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">176
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">177
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">178
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">179
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">180
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">181
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">182
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">183
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">184
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">185
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">186
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">187
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">188
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">189
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">190
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">191
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">192
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">193
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">194
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">195
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">196
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">197
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">198
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">199
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">200
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">201
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">202
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">203
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">204
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">205
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">206
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">207
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">208
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">209
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">210
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">211
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">212
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">213
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">214
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">215
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># masterha_check_status -conf=/etc/masterha/app1.cnf </span>
+</span></span><span style=display:flex><span>app1 <span style=color:#ff7b72;font-weight:700>(</span>pid:1297<span style=color:#ff7b72;font-weight:700>)</span> is running<span style=color:#ff7b72;font-weight:700>(</span>0:PING_OK<span style=color:#ff7b72;font-weight:700>)</span>, master:192.168.1.100
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#关闭master sql</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@100 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># /etc/init.d/mysqld stop</span>
+</span></span><span style=display:flex><span>Shutting down MySQL............ SUCCESS! 
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#查看msyql-108主master</span>
+</span></span><span style=display:flex><span>mysql&gt; show slave status<span style=color:#79c0ff>\G</span>;
+</span></span><span style=display:flex><span>*************************** 1. row ***************************
+</span></span><span style=display:flex><span>               Slave_IO_State: Waiting <span style=color:#ff7b72>for</span> master to send event
+</span></span><span style=display:flex><span>                  Master_Host: 192.168.1.107
+</span></span><span style=display:flex><span>                  Master_User: slave
+</span></span><span style=display:flex><span>                  Master_Port: <span style=color:#a5d6ff>3306</span>
+</span></span><span style=display:flex><span>                Connect_Retry: <span style=color:#a5d6ff>30</span>
+</span></span><span style=display:flex><span>              Master_Log_File: mysql-bin.000001
+</span></span><span style=display:flex><span>          Read_Master_Log_Pos: <span style=color:#a5d6ff>154</span>
+</span></span><span style=display:flex><span>               Relay_Log_File: mysql-108-relay-bin.000002
+</span></span><span style=display:flex><span>                Relay_Log_Pos: <span style=color:#a5d6ff>320</span>
+</span></span><span style=display:flex><span>        Relay_Master_Log_File: mysql-bin.000001
+</span></span><span style=display:flex><span>             Slave_IO_Running: Yes
+</span></span><span style=display:flex><span>            Slave_SQL_Running: Yes
+</span></span><span style=display:flex><span>查看mysql-107
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@mysql-107 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># ifconfig ens192:1</span>
+</span></span><span style=display:flex><span>ens192:1: <span style=color:#79c0ff>flags</span><span style=color:#ff7b72;font-weight:700>=</span>4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;  mtu <span style=color:#a5d6ff>1500</span>
+</span></span><span style=display:flex><span>        inet 192.168.1.111  netmask 255.255.255.0  broadcast 192.168.1.255
+</span></span><span style=display:flex><span>        ether 00:0c:29:8f:ef:9a  txqueuelen <span style=color:#a5d6ff>1000</span>  <span style=color:#ff7b72;font-weight:700>(</span>Ethernet<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>VIP成功漂移过来
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#查看日志</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@101 ~<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># tail -f  /var/log/masterha/app1/manager.log </span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>IN SCRIPT <span style=color:#79c0ff>TEST</span><span style=color:#ff7b72;font-weight:700>====</span>/sbin/ifconfig ens192:1 <span style=color:#79c0ff>down</span><span style=color:#ff7b72;font-weight:700>==</span>/sbin/ifconfig ens192:1 192.168.1.111<span style=color:#ff7b72;font-weight:700>===</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>Checking the Status of the script.. OK 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:02 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  OK.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:02 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span> shutdown_script is not defined.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:02 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Set master ping interval <span style=color:#a5d6ff>1</span> seconds.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:02 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Set secondary check script: /usr/local/bin/masterha_secondary_check -s 192.168.1.107 -s 192.168.1.108
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:02 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Starting ping health check on 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:02 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Ping<span style=color:#ff7b72;font-weight:700>(</span>SELECT<span style=color:#ff7b72;font-weight:700>)</span> succeeded, waiting <span style=color:#ff7b72>until</span> MySQL doesn<span style=color:#a5d6ff>&#39;t respond..
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:19 2021 - [warning] Got error on MySQL select ping: 2006 (MySQL server has gone away)
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:19 2021 - [info] Executing secondary network check script: /usr/local/bin/masterha_secondary_check -s 192.168.1.107 -s 192.168.1.108  --user=root  --master_host=192.168.1.100  --master_ip=192.168.1.100  --master_port=3306 --master_user=mha --master_password=Xk321 --ping_type=SELECT
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:19 2021 - [info] Executing SSH check script: save_binary_logs --command=test --start_pos=4 --binlog_dir=/data/mysql/ --output_file=/tmp/save_binary_logs_test --manager_version=0.58 --binlog_prefix=mysql-bin
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:19 2021 - [info] HealthCheck: SSH to 192.168.1.100 is reachable.
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Monitoring server 192.168.1.107 is reachable, Master is not reachable from 192.168.1.107. OK.
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Monitoring server 192.168.1.108 is reachable, Master is not reachable from 192.168.1.108. OK.
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:19 2021 - [info] Master is not reachable from all other monitoring servers. Failover should start.
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:20 2021 - [warning] Got error on MySQL connect: 2003 (Can&#39;</span>t connect to MySQL server on <span style=color:#a5d6ff>&#39;192.168.1.100&#39;</span> <span style=color:#ff7b72;font-weight:700>(</span>111<span style=color:#ff7b72;font-weight:700>))</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:20 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span> Connection failed <span style=color:#a5d6ff>2</span> time<span style=color:#ff7b72;font-weight:700>(</span>s<span style=color:#ff7b72;font-weight:700>)</span>..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:21 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span> Got error on MySQL connect: <span style=color:#a5d6ff>2003</span> <span style=color:#ff7b72;font-weight:700>(</span>Can<span style=color:#a5d6ff>&#39;t connect to MySQL server on &#39;</span>192.168.1.100<span style=color:#a5d6ff>&#39; (111))
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:21 2021 - [warning] Connection failed 3 time(s)..
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:22 2021 - [warning] Got error on MySQL connect: 2003 (Can&#39;</span>t connect to MySQL server on <span style=color:#a5d6ff>&#39;192.168.1.100&#39;</span> <span style=color:#ff7b72;font-weight:700>(</span>111<span style=color:#ff7b72;font-weight:700>))</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:22 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span> Connection failed <span style=color:#a5d6ff>4</span> time<span style=color:#ff7b72;font-weight:700>(</span>s<span style=color:#ff7b72;font-weight:700>)</span>..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:22 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span> Master is not reachable from health checker!
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:22 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span> Master 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span> is not reachable!
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:22 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span> SSH is reachable.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:22 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Connecting to a master server failed. Reading configuration file /etc/masterha_default.cnf and /etc/masterha/app1.cnf again, and trying to connect to all servers to check server status..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:22 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span> Global configuration file /etc/masterha_default.cnf not found. Skipping.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:22 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Reading application default configuration from /etc/masterha/app1.cnf..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:22 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Reading server configuration from /etc/masterha/app1.cnf..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> GTID failover <span style=color:#79c0ff>mode</span> <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>0</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Dead Servers:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Alive Servers:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Alive Slaves:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>  <span style=color:#79c0ff>Version</span><span style=color:#ff7b72;font-weight:700>=</span>5.7.17-log <span style=color:#ff7b72;font-weight:700>(</span>oldest major version between slaves<span style=color:#ff7b72;font-weight:700>)</span> log-bin:enabled
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Replicating from 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Primary candidate <span style=color:#ff7b72>for</span> the new Master <span style=color:#ff7b72;font-weight:700>(</span>candidate_master is set<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>  <span style=color:#79c0ff>Version</span><span style=color:#ff7b72;font-weight:700>=</span>5.7.17-log <span style=color:#ff7b72;font-weight:700>(</span>oldest major version between slaves<span style=color:#ff7b72;font-weight:700>)</span> log-bin:enabled
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Replicating from 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Checking slave configurations..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  <span style=color:#79c0ff>read_only</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>1</span> is not set on slave 192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span>  <span style=color:#79c0ff>relay_log_purge</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>0</span> is not set on slave 192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  <span style=color:#79c0ff>read_only</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>1</span> is not set on slave 192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span>  <span style=color:#79c0ff>relay_log_purge</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>0</span> is not set on slave 192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Checking replication filtering settings..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  Replication filtering check ok.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Master is down!
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Terminating monitoring script.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Got exit code <span style=color:#a5d6ff>20</span> <span style=color:#ff7b72;font-weight:700>(</span>Master dead<span style=color:#ff7b72;font-weight:700>)</span>.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> MHA::MasterFailover version 0.58.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Starting master failover.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> * Phase 1: Configuration Check Phase..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:23 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> GTID failover <span style=color:#79c0ff>mode</span> <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>0</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Dead Servers:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Checking master reachability via MySQL<span style=color:#ff7b72;font-weight:700>(</span>double check<span style=color:#ff7b72;font-weight:700>)</span>...
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  ok.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Alive Servers:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Alive Slaves:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>  <span style=color:#79c0ff>Version</span><span style=color:#ff7b72;font-weight:700>=</span>5.7.17-log <span style=color:#ff7b72;font-weight:700>(</span>oldest major version between slaves<span style=color:#ff7b72;font-weight:700>)</span> log-bin:enabled
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Replicating from 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Primary candidate <span style=color:#ff7b72>for</span> the new Master <span style=color:#ff7b72;font-weight:700>(</span>candidate_master is set<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>  <span style=color:#79c0ff>Version</span><span style=color:#ff7b72;font-weight:700>=</span>5.7.17-log <span style=color:#ff7b72;font-weight:700>(</span>oldest major version between slaves<span style=color:#ff7b72;font-weight:700>)</span> log-bin:enabled
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Replicating from 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Starting Non-GTID based failover.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> ** Phase 1: Configuration Check Phase completed.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> * Phase 2: Dead Master Shutdown Phase..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Forcing shutdown so that applications never connect to the current master..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Executing master IP deactivation script:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   /usr/local/bin/master_ip_failover --orig_master_host<span style=color:#ff7b72;font-weight:700>=</span>192.168.1.100 --orig_master_ip<span style=color:#ff7b72;font-weight:700>=</span>192.168.1.100 --orig_master_port<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>3306</span> --command<span style=color:#ff7b72;font-weight:700>=</span>stopssh --ssh_user<span style=color:#ff7b72;font-weight:700>=</span>root  
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>IN SCRIPT <span style=color:#79c0ff>TEST</span><span style=color:#ff7b72;font-weight:700>====</span>/sbin/ifconfig ens192:1 <span style=color:#79c0ff>down</span><span style=color:#ff7b72;font-weight:700>==</span>/sbin/ifconfig ens192:1 192.168.1.111<span style=color:#ff7b72;font-weight:700>===</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>Disabling the VIP on old master: 192.168.1.100 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  <span style=color:#ff7b72>done</span>.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>warning<span style=color:#ff7b72;font-weight:700>]</span> shutdown_script is not set. Skipping explicit shutting down of the dead master.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> * Phase 2: Dead Master Shutdown Phase completed.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> * Phase 3: Master Recovery Phase..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> * Phase 3.1: Getting Latest Slaves Phase..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> The latest binary log file/position on all slaves is mysql-bin.000035:154
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Latest slaves <span style=color:#ff7b72;font-weight:700>(</span>Slaves that received relay log files to the latest<span style=color:#ff7b72;font-weight:700>)</span>:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>  <span style=color:#79c0ff>Version</span><span style=color:#ff7b72;font-weight:700>=</span>5.7.17-log <span style=color:#ff7b72;font-weight:700>(</span>oldest major version between slaves<span style=color:#ff7b72;font-weight:700>)</span> log-bin:enabled
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Replicating from 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Primary candidate <span style=color:#ff7b72>for</span> the new Master <span style=color:#ff7b72;font-weight:700>(</span>candidate_master is set<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>  <span style=color:#79c0ff>Version</span><span style=color:#ff7b72;font-weight:700>=</span>5.7.17-log <span style=color:#ff7b72;font-weight:700>(</span>oldest major version between slaves<span style=color:#ff7b72;font-weight:700>)</span> log-bin:enabled
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Replicating from 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> The oldest binary log file/position on all slaves is mysql-bin.000035:154
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Oldest slaves:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>  <span style=color:#79c0ff>Version</span><span style=color:#ff7b72;font-weight:700>=</span>5.7.17-log <span style=color:#ff7b72;font-weight:700>(</span>oldest major version between slaves<span style=color:#ff7b72;font-weight:700>)</span> log-bin:enabled
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Replicating from 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Primary candidate <span style=color:#ff7b72>for</span> the new Master <span style=color:#ff7b72;font-weight:700>(</span>candidate_master is set<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>  <span style=color:#79c0ff>Version</span><span style=color:#ff7b72;font-weight:700>=</span>5.7.17-log <span style=color:#ff7b72;font-weight:700>(</span>oldest major version between slaves<span style=color:#ff7b72;font-weight:700>)</span> log-bin:enabled
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Replicating from 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> * Phase 3.2: Saving Dead Master<span style=color:#a5d6ff>&#39;s Binlog Phase..
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:24 2021 - [info] 
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:24 2021 - [info] Fetching dead master&#39;</span>s binary logs..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:24 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Executing command on the dead master 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>: save_binary_logs --command<span style=color:#ff7b72;font-weight:700>=</span>save --start_file<span style=color:#ff7b72;font-weight:700>=</span>mysql-bin.000035  --start_pos<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>154</span> --binlog_dir<span style=color:#ff7b72;font-weight:700>=</span>/data/mysql/ --output_file<span style=color:#ff7b72;font-weight:700>=</span>/tmp/saved_master_binlog_from_192.168.1.100_3306_20210507213023.binlog --handle_raw_binlog<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>1</span> --disable_log_bin<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>0</span> --manager_version<span style=color:#ff7b72;font-weight:700>=</span>0.58
+</span></span><span style=display:flex><span>  Creating /tmp <span style=color:#ff7b72>if</span> not exists..    ok.
+</span></span><span style=display:flex><span> Concat binary/relay logs from mysql-bin.000035 pos <span style=color:#a5d6ff>154</span> to mysql-bin.000035 EOF into /tmp/saved_master_binlog_from_192.168.1.100_3306_20210507213023.binlog ..
+</span></span><span style=display:flex><span> Binlog Checksum enabled
+</span></span><span style=display:flex><span>  Dumping binlog format description event, from position <span style=color:#a5d6ff>0</span> to 154.. ok.
+</span></span><span style=display:flex><span>  No need to dump effective binlog data from /data/mysql//mysql-bin.000035 <span style=color:#ff7b72;font-weight:700>(</span>pos starts 154, filesize 154<span style=color:#ff7b72;font-weight:700>)</span>. Skipping.
+</span></span><span style=display:flex><span> Binlog Checksum enabled
+</span></span><span style=display:flex><span> /tmp/saved_master_binlog_from_192.168.1.100_3306_20210507213023.binlog has no effective data events.
+</span></span><span style=display:flex><span>Event not exists.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Additional events were not found from the orig master. No need to save.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> * Phase 3.3: Determining New Master Phase..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Finding the latest slave that has all relay logs <span style=color:#ff7b72>for</span> recovering other slaves..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> All slaves received relay logs to the same position. No need to resync each other.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Searching new master from slaves..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  Candidate masters from the configuration file:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>  <span style=color:#79c0ff>Version</span><span style=color:#ff7b72;font-weight:700>=</span>5.7.17-log <span style=color:#ff7b72;font-weight:700>(</span>oldest major version between slaves<span style=color:#ff7b72;font-weight:700>)</span> log-bin:enabled
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Replicating from 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>     Primary candidate <span style=color:#ff7b72>for</span> the new Master <span style=color:#ff7b72;font-weight:700>(</span>candidate_master is set<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  Non-candidate masters:
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  Searching from candidate_master slaves which have received the latest relay log events..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> New master is 192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Starting master failover..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>From:
+</span></span><span style=display:flex><span>192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>(</span>current master<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span> +--192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span> +--192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>To:
+</span></span><span style=display:flex><span>192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>(</span>new master<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span> +--192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> * Phase 3.4: New Master Diff Log Generation Phase..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  This server has all relay logs. No need to generate diff files from the latest slave.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> * Phase 3.5: Master Log Apply Phase..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> *NOTICE: If any error happens from this phase, manual recovery is needed.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Starting recovery on 192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>..
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  This server has all relay logs. Waiting all logs to be applied.. 
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>   <span style=color:#ff7b72>done</span>.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span>  All relay logs were successfully applied.
+</span></span><span style=display:flex><span>Fri May  <span style=color:#a5d6ff>7</span> 21:30:25 <span style=color:#a5d6ff>2021</span> - <span style=color:#ff7b72;font-weight:700>[</span>info<span style=color:#ff7b72;font-weight:700>]</span> Getting new master<span style=color:#a5d6ff>&#39;s binlog name and position..
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:25 2021 - [info]  mysql-bin.000007:154
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:25 2021 - [info]  All other slaves should start replication from here. Statement should be: CHANGE MASTER TO MASTER_HOST=&#39;</span>192.168.1.107<span style=color:#a5d6ff>&#39;, MASTER_PORT=3306, MASTER_LOG_FILE=&#39;</span>mysql-bin.000007<span style=color:#a5d6ff>&#39;, MASTER_LOG_POS=154, MASTER_USER=&#39;</span>slave<span style=color:#a5d6ff>&#39;, MASTER_PASSWORD=&#39;</span>xxx<span style=color:#a5d6ff>&#39;;
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:25 2021 - [info] Executing master IP activate script:
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>Fri May  7 21:30:25 2021 - [info]   /usr/local/bin/master_ip_failover --command=start --ssh_user=root --orig_master_host=192.168.1.100 --orig_master_ip=192.168.1.100 --orig_master_port=3306 --new_master_host=192.168.1.107 --new_master_ip=192.168.1.107 --new_master_port=3306 --new_master_user=&#39;</span>mha<span style=color:#f85149>&#39;</span>   --new_master_password<span style=color:#ff7b72;font-weight:700>=</span>xxx
+</span></span><span style=display:flex><span>Unknown option: new_master_user
+</span></span><span style=display:flex><span>Unknown option: new_master_password
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>IN SCRIPT <span style=color:#79c0ff>TEST</span><span style=color:#ff7b72;font-weight:700>====</span>/sbin/ifconfig ens192:1 <span style=color:#79c0ff>down</span><span style=color:#ff7b72;font-weight:700>==</span>/sbin/ifconfig ens192:1 192.168.1.111<span style=color:#ff7b72;font-weight:700>===</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>----- Failover Report -----
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>app1: MySQL Master failover 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span> to 192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span> succeeded
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>Master 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span> is down!
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>Check MHA Manager logs at 101:/var/log/masterha/app1/manager.log <span style=color:#ff7b72>for</span> details.
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>Started automated<span style=color:#ff7b72;font-weight:700>(</span>non-interactive<span style=color:#ff7b72;font-weight:700>)</span> failover.
+</span></span><span style=display:flex><span>Invalidated master IP address on 192.168.1.100<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.100:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>The latest slave 192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span> has all relay logs <span style=color:#ff7b72>for</span> recovery.
+</span></span><span style=display:flex><span>Selected 192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span> as a new master.
+</span></span><span style=display:flex><span>192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>: OK: Applying all logs succeeded.
+</span></span><span style=display:flex><span>192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>: OK: Activated master IP address.
+</span></span><span style=display:flex><span>192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>: This host has the latest relay log events.
+</span></span><span style=display:flex><span>Generating relay diff files from the latest slave succeeded.
+</span></span><span style=display:flex><span>192.168.1.108<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.108:3306<span style=color:#ff7b72;font-weight:700>)</span>: OK: Applying all logs succeeded. Slave started, replicating from 192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span>: Resetting slave info succeeded.
+</span></span><span style=display:flex><span>Master failover to 192.168.1.107<span style=color:#ff7b72;font-weight:700>(</span>192.168.1.107:3306<span style=color:#ff7b72;font-weight:700>)</span> completed successfully.
+</span></span></code></pre></td></tr></table></div></div><p>在MHA的高可用环境的，主库宕机了，MHA服务将停止，如何恢复MHA服务了，需要把宕机的主库加入到高可用环境（也就是把宕机的主库变成从库）在重新启动MHA</p></div><div class=post-archive><ul class=post-copyright><li><strong>原文作者：</strong><a rel=author href=https://blogs.xwnlearn.cn/>徐同学的博客</a></li><li style=word-break:break-all><strong>原文链接：</strong><a href=https://blogs.xwnlearn.cn/post/2021/MySQL-MHA%E9%AB%98%E5%8F%AF%E7%94%A8VIP%E8%AE%BE%E7%BD%AE/>https://blogs.xwnlearn.cn/post/2021/MySQL-MHA%E9%AB%98%E5%8F%AF%E7%94%A8VIP%E8%AE%BE%E7%BD%AE/</a></li><li><strong>版权声明：</strong>本作品采用<a rel=license href=https://creativecommons.org/licenses/by-nc-nd/4.0/>知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议</a>. 进行许可，非商业转载请注明出处（作者，原文链接），商业转载请联系作者获得授权。</li></ul></div><br><div class=post-archive><h2>相关文章</h2><ul class=listing><li><a href=/post/2021/MySQL%E5%A4%87%E4%BB%BD%E6%81%A2%E5%A4%8D-XtraBackup/>MySQL备份恢复-XtraBackup</a></li><li><a href=/post/2021/%E4%BF%AE%E6%94%B9mysql%E5%AF%86%E7%A0%81/>修改mysql密码</a></li><li><a href=/post/2021/Mysql%E4%B8%80%E4%B8%BB%E4%B8%80%E4%BB%8E/>Mysql一主一从</a></li><li><a href=/post/2021/MySQL%E7%BB%83%E4%B9%A0%E9%A2%98/>MySQL练习题</a></li><li><a href=/post/2020/MySQL%E5%9F%BA%E7%A1%80%E6%95%B4%E7%90%86/>MySQL基础整理</a></li></ul></div><div class="post-meta meta-tags"><ul class=clearfix><li><a href=/tags/%E6%95%B0%E6%8D%AE%E5%BA%93 target=_blank>数据库</a></li></ul></div></article><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//yourdiscussshortname.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a><div class="post bg-white"><script src=https://utteranc.es/client.js repo="your github repo" issue-term=pathname theme=github-light crossorigin=anonymous async></script></div></div><footer id=footer><div>&copy; 2025 <a href=https://blogs.xwnlearn.cn/>徐同学的博客 By 徐同学</a>
+| <a rel=nofollow target=_blank href=http://beian.miit.gov.cn/>皖ICP备2020020988号-1</a> | <a href=https://gohugo.io/ target=_black rel=nofollow><span class=badge-subject>Powered by</span><span class="badge-value bg-blue">Hugo</span></a> | <a href=https://github.com/flysnow-org/maupassant-hugo target=_black><span class=badge-subject>Theme</span><span class="badge-value bg-yellowgreen">Maupassant</span></a></div></footer><script type=text/javascript>window.MathJax={tex2jax:{inlineMath:[["$","$"]],processEscapes:!0}}</script><script src='//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script><script src=//cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js></script><a id=rocket href=#top></a><script type=text/javascript src='/js/totop.js?v=0.0.0' async></script><style type=text/css>div.highlight{position:relative;margin:1em 0}.copy-code{display:none;position:absolute;top:4px;right:4px;color:rgba(255,255,255,.8);background:rgba(78,78,78,.8);border-radius:var(--radius);padding:0 5px;font:inherit;user-select:none;cursor:pointer;border:0;--radius:8px}div.highlight:hover .copy-code,pre:hover .copy-code{display:block}</style><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script><script src=/js/douban.js></script></div><div id=secondary><section class=widget><form id=search action=https://blogs.xwnlearn.cn/search method=get accept-charset=utf-8 target=_blank _lpchecked=1><input type=text name=q maxlength=20 placeholder=Search>
+<input type=hidden name=sitesearch value=https://blogs.xwnlearn.cn/>
+<button type=submit class="submit icon-search"></button></form></section><section class=widget><h3 class=widget-title>最近文章</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/ title="Jenkins Pipeline 进阶：多平台账号关联与自动化部署" target=_blank>Jenkins Pipeline 进阶：多平台账号关联与自动化部署</a></li><li><a href=https://blogs.xwnlearn.cn/post/2025/%E9%AB%98%E5%8F%AF%E7%94%A8harbor/ title=高可用harbor target=_blank>高可用harbor</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/%E5%BF%AB%E9%80%9F%E6%9E%84%E5%BB%BAZabbix7.0%E9%AB%98%E5%8F%AF%E7%94%A8%E7%9B%91%E6%8E%A7%E6%96%B9%E6%A1%88/ title=快速构建Zabbix7.0高可用监控方案 target=_blank>快速构建Zabbix7.0高可用监控方案</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/Microk8s%E9%83%A8%E7%BD%B2kubeflow/ title=Microk8s部署kubeflow target=_blank>Microk8s部署kubeflow</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/K8sGPT%E5%BA%94%E7%94%A8/ title=K8sGPT应用 target=_blank>K8sGPT应用</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/LocalAI-k8sgpt-operator/ title=LocalAI+k8sgpt-operator target=_blank>LocalAI+k8sgpt-operator</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/ApisixRoute%E9%85%8D%E7%BD%AE%E5%90%8E%E7%AB%AF%E8%B6%85%E6%97%B6%E6%97%B6%E9%97%B4/ title=ApisixRoute配置后端超时时间 target=_blank>ApisixRoute配置后端超时时间</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/apisix-ingress%E4%B8%8Eapisix%E7%9B%91%E6%8E%A7/ title=apisix-ingress与apisix监控 target=_blank>apisix-ingress与apisix监控</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Prometheus/ title=Prometheus target=_blank>Prometheus</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Telegram-bot/ title=Telegram-bot target=_blank>Telegram-bot</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/categories/>分类</a></h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/categories/CI/CD/>CI/CD (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Go%E8%AF%AD%E8%A8%80/>Go语言 (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Kubernetes/>Kubernetes (17)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Linux/>Linux (21)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件 (7)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库 (9)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E7%9B%91%E6%8E%A7/>监控 (5)</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/tags/>标签</a></h3><div class=tagcloud><a href=https://blogs.xwnlearn.cn/tags/Docker/>Docker</a>
+<a href=https://blogs.xwnlearn.cn/tags/Go%E8%AF%AD%E8%A8%80/>Go语言</a>
+<a href=https://blogs.xwnlearn.cn/tags/Jenkins/>Jenkins</a>
+<a href=https://blogs.xwnlearn.cn/tags/Kubernetes/>Kubernetes</a>
+<a href=https://blogs.xwnlearn.cn/tags/Linux/>Linux</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pipeline/>Pipeline</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pod/>Pod</a>
+<a href=https://blogs.xwnlearn.cn/tags/Prometheus/>Prometheus</a>
+<a href=https://blogs.xwnlearn.cn/tags/Service/>Service</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSH/>SSH</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSL/>SSL</a>
+<a href=https://blogs.xwnlearn.cn/tags/Zabbix/>Zabbix</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E5%AD%98%E5%82%A8/>存储</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E7%9B%91%E6%8E%A7/>监控</a></div></section><section class=widget><h3 class=widget-title>友情链接</h3><ul class=widget-list><li><a target=_blank href=https://www.liwenzhou.com/ title=李文周的博客>李文周的博客</a></li></ul></section><section class=widget><h3 class=widget-title>其它</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/index.xml>文章 RSS</a></li></ul></section></div></div></div></div></body></html>

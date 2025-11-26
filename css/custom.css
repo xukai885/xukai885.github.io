@@ -1,0 +1,77 @@
+/* 自定义CSS - 修复表格溢出问题 */
+
+/* 表格容器溢出处理 */
+.content {
+    overflow-x: auto;
+    word-wrap: break-word;
+}
+
+/* 表格响应式样式 */
+.content table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: auto;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 1em 0;
+}
+
+/* 表格边框和间距 */
+.content table th,
+.content table td {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+    vertical-align: top;
+    word-wrap: break-word;
+    max-width: 200px; /* 限制单元格最大宽度 */
+}
+
+/* 表格头部样式 */
+.content table th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+}
+
+/* 表格奇偶行样式 */
+.content table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* 表格悬停效果 */
+.content table tr:hover {
+    background-color: #f0f0f0;
+}
+
+/* 大表格滚动提示 */
+.content table {
+    position: relative;
+}
+
+/* 响应式处理 */
+@media screen and (max-width: 768px) {
+    .content table {
+        font-size: 12px;
+    }
+    
+    .content table th,
+    .content table td {
+        padding: 6px 8px;
+        max-width: 150px;
+    }
+}
+
+/* 代码块溢出处理 */
+.content pre {
+    overflow-x: auto;
+    white-space: pre;
+    word-wrap: normal;
+}
+
+/* 图片响应式 */
+.content img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1em auto;
+}

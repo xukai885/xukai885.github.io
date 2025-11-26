@@ -1,0 +1,406 @@
+<!doctype html><html lang=zh-hans><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>kubernetes数据存储 | 徐同学的博客</title><meta property="og:title" content="kubernetes数据存储 - 徐同学的博客"><meta property="og:type" content="article"><meta property="article:published_time" content='2022-05-29T08:00:00+08:00'><meta property="article:modified_time" content='2022-05-29T08:00:00+08:00'><meta name=Keywords content="kubernetes,k8s,linux,运维,数据库,mysql,监控,CI/CD,jenkins,docker,go语言,技术博客"><meta name=description content="简述k8s存储"><meta name=author content="徐同学"><meta property="og:url" content="https://blogs.xwnlearn.cn/post/2022/kubernetes%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8/"><link rel="shortcut icon" href=/favicon.ico type=image/x-icon><link rel=icon href=/favicon.png type=image/png><link rel="alternate icon" href=/favicon.png type=image/svg+xml><link rel=stylesheet href=/css/normalize.css><link rel=stylesheet href=/css/style.css><script type=text/javascript src=//cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.min.js></script><link href=https://cdn.bootcdn.net/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css rel=stylesheet><link rel=stylesheet href=/css/douban.css><link rel=stylesheet href=/css/other.css></head><body><header id=header class=clearfix><div class=container><div class=col-group><div class=site-name><a id=logo href=https://blogs.xwnlearn.cn/>徐同学的博客</a><p class=description>宝剑锋从磨砺出，梅花香自苦寒来✌️</p></div><div><nav id=nav-menu class=clearfix><a class=current href=https://blogs.xwnlearn.cn/>首页</a>
+<a href=https://blogs.xwnlearn.cn/archives/ title=归档>归档</a>
+<a href=https://blogs.xwnlearn.cn/about/ title=关于>关于</a></nav></div></div></div></header><div id=body><div class=container><div class=col-group><div class=col-8 id=main><div class=res-cons><style type=text/css>.post-toc{position:fixed;width:200px;margin-left:-210px;padding:5px 10px;font-family:Athelas,STHeiti,Microsoft Yahei,serif;font-size:12px;border:1px solid rgba(0,0,0,7%);border-radius:5px;background-color:rgba(255,255,255,.98);background-clip:padding-box;-webkit-box-shadow:1px 1px 2px rgba(0,0,0,.125);box-shadow:1px 1px 2px rgba(0,0,0,.125);word-wrap:break-word;white-space:nowrap;-webkit-box-sizing:border-box;box-sizing:border-box;z-index:999;cursor:pointer;max-height:70%;overflow-y:auto;overflow-x:hidden}.post-toc .post-toc-title{width:100%;margin:0 auto;font-size:20px;font-weight:400;text-transform:uppercase;text-align:center}.post-toc .post-toc-content{font-size:15px}.post-toc .post-toc-content>nav>ul{margin:10px 0}.post-toc .post-toc-content ul{padding-left:20px;list-style:square;margin:.5em;line-height:1.8em}.post-toc .post-toc-content ul ul{padding-left:15px;display:none}@media print,screen and (max-width:1057px){.post-toc{display:none}}</style><div class=post-toc style=position:absolute;top:188px><h2 class=post-toc-title>文章目录</h2><div class=post-toc-content><nav id=TableOfContents><ul><li><a href=#数据存储>数据存储</a><ul><li><a href=#1基本存储>1.基本存储</a></li><li><a href=#2高级存储>2.高级存储</a></li><li><a href=#3配置存储>3.配置存储</a></li></ul></li></ul></nav></div></div><script type=text/javascript>$(document).ready(function(){if(e=$(".post-toc"),e.length){t=$("#main").offset().left,t<220&&e.css({width:t-10,"margin-left":0-t});var e,t,n=e.offset().top-20,s={start:{position:"absolute",top:n},process:{position:"fixed",top:20}};$(window).scroll(function(){var t=$(window).scrollTop();t<n?e.css(s.start):e.css(s.process)})}$("#TableOfContents").children().length<1&&$(".post-toc").remove()})</script><article class=post><header><h1 class=post-title>kubernetes数据存储</h1></header><time datetime=2022-05-29T00:00:00Z class="post-meta meta-date dt-published">2022年5月29日</time><div class="post-meta meta-category"><span>&nbsp;|</span>
+<a href=/categories/Kubernetes target=_blank>Kubernetes</a></div><div class=clear style=display:none><div class=toc-article><div class=toc-title>文章目录</div></div></div><div class=post-content><h2 id=数据存储>数据存储</h2><pre><code>kubernetes引入了volume的概念，是pod中能够被多个容器互相访问的共享目录，被定义在pod上，volume的生命周期与pod中的单个容器的生命周期无关，容器终止或重启volume中的数据不会丢失（有的会丢失）
+</code></pre><p>k8s常见volume类型</p><ul><li>简单存储：EmptyDir，HostPath，NFS</li><li>高级存储：PV，PVC</li><li>配置存储：ConfigMap，Secret</li></ul><h3 id=1基本存储>1.基本存储</h3><h4 id=11emptydir>1.1EmptyDir</h4><pre><code>EmptyDir是最基本的Volume类型，一个EmptyDir就是host上的一个空目录
+EmptyDir是pod被分配到node时创建的，初始内容为空，无需指定宿主机目录文件，因为kubernetes会自动分配一个目录，销毁pod时emptydir中数据会被删除
+- 临时目录
+- 多容器共享目录
+</code></pre><pre tabindex=0><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-emptydir
+  namespace: dev
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 80
+      volumeMounts: # 将logs-volume挂载到nginx容器中对应的目录，该目录为/var/log/nginx
+        - name: logs-volume
+          mountPath: /var/log/nginx
+    - name: busybox
+      image: busybox:1.30
+      imagePullPolicy: IfNotPresent
+      command: [&#34;/bin/sh&#34;,&#34;-c&#34;,&#34;tail -f /logs/access.log&#34;] # 初始命令，动态读取指定文件
+      volumeMounts: # 将logs-volume挂载到busybox容器中的对应目录，该目录为/logs
+        - name: logs-volume
+          mountPath: /logs
+  volumes: # 声明volume，name为logs-volume，类型为emptyDir
+    - name: logs-volume
+      emptyDir: {}
+查看日志：
+kubectl logs -f volume-emptydir -n dev -c busybox
+</code></pre><h4 id=12hostpath>1.2HostPath</h4><pre><code>EmptyDir数据不会持久化，HostPath是将Node主机中的目录挂载到pod中以供容器使用
+</code></pre><pre tabindex=0><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-emptydir
+  namespace: dev
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 80
+      volumeMounts: # 将logs-volume挂载到nginx容器中对应的目录，该目录为/var/log/nginx
+        - name: logs-volume
+          mountPath: /var/log/nginx
+    - name: busybox
+      image: busybox:1.30
+      imagePullPolicy: IfNotPresent
+      command: [&#34;/bin/sh&#34;,&#34;-c&#34;,&#34;tail -f /logs/access.log&#34;] # 初始命令，动态读取指定文件
+      volumeMounts: # 将logs-volume挂载到busybox容器中的对应目录，该目录为/logs
+        - name: logs-volume
+          mountPath: /logs
+  volumes: # 声明volume，name为logs-volume，类型为emptyDir
+    - name: logs-volume
+      hostPath:
+        path: /root/logs
+        type: DirectoryOrCreate
+type的值的说明：
+DirectoryOrCreate：目录存在就使用，不存在就先创建后使用。
+Directory：目录必须存在。
+FileOrCreate：文件存在就使用，不存在就先创建后使用。
+File：文件必须存在。
+Socket：unix套接字必须存在。
+CharDevice：字符设备必须存在。
+BlockDevice：块设备必须存在。
+</code></pre><h4 id=13nfs>1.3NFS</h4><pre tabindex=0><code>nfs安装
+yum -y install nfs-utils
+创建共享目录
+暴露网段权限
+vim /etc/exports
+/home/k8s-nfs 192.168.2.0/24(rw,no_root_squash)
+加载配置
+exportfs -r
+启动nfs
+node节点安装nfs测试(驱动)
+[root@102 ~]# showmount -e 192.168.2.5
+Export list for 192.168.2.5:
+/root/nfs 192.168.2.0/24
+
+yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-emptydir
+  namespace: dev
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 80
+      volumeMounts: # 将logs-volume挂载到nginx容器中对应的目录，该目录为/var/log/nginx
+        - name: logs-volume
+          mountPath: /var/log/nginx
+  volumes: # 声明volume，name为logs-volume，类型为emptyDir
+    - name: logs-volume
+      nfs:
+        server: 192.168.2.5
+        path: /root/nfs 
+</code></pre><h3 id=2高级存储>2.高级存储</h3><h4 id=21pv和pvc>2.1PV和pvc</h4><pre><code>PV（persistent volume）是持久化卷的意思，是对底层的共享存储的一种抽象，一般情况下PV由kubernetes管理员进行创建和配置，他与底层具体的共享存储技术有关，并通过插件完成与共享存储的对接。
+PVC（persistene volume claim）是持久卷声名的意思，是用户对存储需求的一种声名。
+</code></pre><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/pvc.png><img class=mx-auto alt=pvc.png src=https://blog.xwnlearn.cn/api/v1/look_images/pvc.png></a></p><h4 id=22pv>2.2pv</h4><pre><code>PV是存储资源的抽象，资源清单
+</code></pre><pre tabindex=0><code>apiVersion: v1
+kind: PersisteneVolume
+metadata:
+  name: pv2
+spec:
+  nfs: #存储类型，与底层真正存储有关
+  capacity: #存储能力，目前只支持存储空间的设置
+    storage: 2Gi
+  accessModes: #访问模式
+  storageClassName: #存储类别
+  persistentVolumeReclaimPolicy: # 回收策略
+- 存储类型：底层实际存储的类型，k8s支持多种存储类型，每种存储类型的配置都有所差异
+- 存储能力：目前只支持存储空间的设置(storage=1Gi)
+- 访问模式：用于描述用户应用对存储资源的访问权限，访问权限包括
+  - ReadWriteOnce(RWO)：读写权限，但只能被单个节点挂载
+  - ReadOnlyMany(ROX)：只读权限，可以被多个节点挂载
+  - ReadWriteMany(RWX)：读写权限，可以被多个节点挂载
+  **底层不同的存储类型可能支持的访问模式不同**
+- 回收策略
+    当pv不再被使用之后，对其的处理方式，目前支持三种策略
+    - Retain（保留）：保留数据，需要管理员手工清理数据
+    - Recycle（回收）：清楚pv中的数据，想过相当于rm -rf
+    - Delete（删除）：与pv相连的后端存储完成volume的删除操作，常见于与服务商的存储服务
+  **不同底层存储类型可能支持的回收策略不同**
+- 存储类别
+    PV可以通过storageClassName参数指定一个存储类别
+    - 具有特定类别的PV只能与请求了该类别的PVC进行绑定
+    - 未设定类别的PV则只能与不请求任何类别的PVC进行绑定
+- 状态
+    一个PV的生命周期中，可能会处于4中不同的阶段
+    - Available（可用）：表示可用状态，还未被任何pvc绑定
+    - Bound（已绑定）：表示pv已经被pvc绑定
+    - Released（已释放）：表示pvc被删除，但是资源还未被集群重新声名
+    - Failed（失败）：表示该pv的自动回收失败
+</code></pre><p>pv创建</p><pre tabindex=0><code>apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv1
+spec:
+  nfs: # 存储类型吗，和底层正则的存储对应
+    path: /root/nfs/pv1
+    server: 192.168.2.5
+  capacity: # 存储能力，目前只支持存储空间的设置
+    storage: 1Gi
+  accessModes: # 访问模式
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain # 回收策略
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv2
+spec:
+  nfs: # 存储类型吗，和底层正则的存储对应
+    path: /root/nfs/pv1
+    server: 192.168.2.5
+  capacity: # 存储能力，目前只支持存储空间的设置
+    storage: 2Gi
+  accessModes: # 访问模式
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain # 回收策略
+  
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv3
+spec:
+  nfs: # 存储类型吗，和底层正则的存储对应
+    path: /root/nfs/pv1
+    server: 192.168.2.5
+  capacity: # 存储能力，目前只支持存储空间的设置
+    storage: 3Gi
+  accessModes: # 访问模式
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain # 回收策略
+  
+[root@101 ~]# kubectl get pv -o wide
+NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE   VOLUMEMODE
+pv1    1Gi        RWX            Retain           Available                                   8s    Filesystem
+pv2    2Gi        RWX            Retain           Available                                   8s    Filesystem
+pv3    3Gi        RWX            Retain           Available                                   8s    Filesystem
+</code></pre><h4 id=23pvc>2.3pvc</h4><pre><code>PVC是资源的申请，用来声名对存储空间，访问模式，存储类别需求信息，资源清单
+</code></pre><pre tabindex=0><code>apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc
+  namespace: dev
+spec:
+  accessModes: #访问模式
+  selector: #采用标签对pv选择
+  storageClassName: #存储类别
+  resources: #请求空间
+    requests:
+      storage: 5Gi
+- 访问模式：用于描述用户应用对存储资源的访问权限
+- 选择条件：通过label selector的设置，可使pvc对于系统中已存在的pv进行筛选
+- 存储类别：pvc在定义时可以设定需要的后端存储的类别，只有设置了该class的pv才能被系统选中
+- 资源请求：描述对存储资源的请求
+</code></pre><p>实验</p><pre tabindex=0><code>**创建pvc**
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc1
+  namespace: dev
+spec:
+  accessModes: 
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc2
+  namespace: dev
+spec:
+  accessModes: 
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc3
+  namespace: dev
+spec:
+  accessModes: 
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 3Gi
+[root@101 ~]# kubectl get pvc -n dev -o wide
+NAME   STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE   VOLUMEMODE
+pvc1   Bound    pv1      1Gi        RWX                           13s   Filesystem
+pvc2   Bound    pv2      2Gi        RWX                           13s   Filesystem
+pvc3   Bound    pv3      3Gi        RWX                           13s   Filesystem
+[root@101 ~]# kubectl get pv -o wide
+NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM      STORAGECLASS   REASON   AGE    VOLUMEMODE
+pv1    1Gi        RWX            Retain           Bound    dev/pvc1                           103s   Filesystem
+pv2    2Gi        RWX            Retain           Bound    dev/pvc2                           103s   Filesystem
+pv3    3Gi        RWX            Retain           Bound    dev/pvc3                           103s   Filesystem
+**创建pod使用**
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod1
+  namespace: dev
+spec:
+  containers:
+  - name: busybox
+    image: busybox:1.30
+    command: [&#34;/bin/sh&#34;,&#34;-c&#34;,&#34;while true;do echo pod1 &gt;&gt; /root/out.txt; sleep 10; done;&#34;]
+    volumeMounts:
+    - name: volume
+      mountPath: /root/
+  volumes:
+    - name: volume
+      persistentVolumeClaim:
+        claimName: pvc1
+        readOnly: false
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod2
+  namespace: dev
+spec:
+  containers:
+    - name: busybox
+      image: busybox:1.30
+      command: [&#34;/bin/sh&#34;,&#34;-c&#34;,&#34;while true;do echo pod1 &gt;&gt; /root/out.txt; sleep 10; done;&#34;]
+      volumeMounts:
+        - name: volume
+          mountPath: /root/
+  volumes:
+    - name: volume
+      persistentVolumeClaim:
+        claimName: pvc2
+        readOnly: false
+</code></pre><h4 id=24生命周期>2.4生命周期</h4><pre><code>PVC和PV是一一对应的，PV和PVC之间的相互作用遵循以下生命周期
+- 资源供应：管理员手动创建底层存储和PV
+- 资源绑定：用户创建pvc，k8s负责根据pvc的声名去寻找pv，并绑定在用户定义好的pv之后，系统将根据pvc与对存储资源的请求在已存在的pv中选择一个满足条件的
+  - 一旦找到，就将该pv与用户定义的pvc进行绑定，用户的应用就可以使用这个pvc了
+  - 如果找不到，pvc则会无限期处于Pending状态，直到等到管理员创建了一个符合其要求的pv，pv一旦被绑定到某个pvc上，就会被pvc独占，不能再与其他pvc绑定
+- 资源使用：用户在pod上像volume一样使用pvc
+- 资源释放：当存储资源使用完毕后，用户可以删除pvc，与该pvc绑定的pv将被标记为已释放，但还不能立刻与其他pvc进行绑定，通过之前pvc写入的数据可能还保留在存储设备上，只有在清理之后该pv才能再次使用
+- 资源回收：只有pv的存储空间完成回收，才能供新的pvc绑定和使用
+</code></pre><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/pvvv.png><img class=mx-auto alt=pvvv.png src=https://blog.xwnlearn.cn/api/v1/look_images/pvvv.png></a></p><h3 id=3配置存储>3.配置存储</h3><h4 id=31configmap>3.1ConfigMap</h4><pre><code>configmap是一种特殊的存储卷，主要作用是来存储配置信息
+</code></pre><p>创建</p><pre tabindex=0><code>apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap
+  namespace: dev
+data:
+  info:
+    username:admin
+    password:111111
+  url:
+    http:1.com
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-configmap
+  namespace: dev
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.17.1
+    volumeMounts: #将configmap挂载到目录
+    - name: config
+      mountPath: /configmap/config
+  volumes: #应用configmap
+  - name: config
+    configMap:
+      name: configmap
+</code></pre><pre><code>configmap中的key映射为一个文件，value映射为文件中的内容，如果更新configmap中的内容，容器中的值也会动态更新
+</code></pre><h4 id=32secret>3.2Secret</h4><pre><code>在k8s中，还存在一种和configmap非常相似的对象，称为Secret对象，它主要用于存储敏感信息，例如密钥，密码证书
+</code></pre><ul><li>首先使用base64对数据进行编码</li></ul><pre tabindex=0><code>echo &#34;admin&#34; |base64
+</code></pre><ul><li>yaml文件，创建Secret</li></ul><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">9
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#7ee787>apiVersion</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>v1</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>kind</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>Secret</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>metadata</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>name</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>secret</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>namespace</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>dev</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>type</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>Opaque</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>data</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>username</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>YWRtaW4K</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>password</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>MTExMTExCg==</span><span style=color:#6e7681>
+</span></span></span></code></pre></td></tr></table></div></div><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=display:flex><span><span style=color:#7ee787>apiVersion</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>v1</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>kind</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>Pod</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>metadata</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>name</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>pod-secret</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>namespace</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>dev</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681></span><span style=color:#7ee787>spec</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>containers</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span>- <span style=color:#7ee787>name</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>nginx</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>image</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>nginx:1.17.1</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>volumeMounts</span>:<span style=color:#6e7681> </span><span style=color:#8b949e;font-style:italic>#将挂载到目录</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span>- <span style=color:#7ee787>name</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>config</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span><span style=color:#7ee787>mountPath</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>/secret/config</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span><span style=color:#7ee787>volumes</span>:<span style=color:#6e7681> </span><span style=color:#8b949e;font-style:italic>#应用</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>  </span>- <span style=color:#7ee787>name</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>config</span><span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>secret</span>:<span style=color:#6e7681>
+</span></span></span><span style=display:flex><span><span style=color:#6e7681>      </span><span style=color:#7ee787>secretName</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>secret</span><span style=color:#6e7681>
+</span></span></span></code></pre></td></tr></table></div></div></div><div class=post-archive><ul class=post-copyright><li><strong>原文作者：</strong><a rel=author href=https://blogs.xwnlearn.cn/>徐同学的博客</a></li><li style=word-break:break-all><strong>原文链接：</strong><a href=https://blogs.xwnlearn.cn/post/2022/kubernetes%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8/>https://blogs.xwnlearn.cn/post/2022/kubernetes%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8/</a></li><li><strong>版权声明：</strong>本作品采用<a rel=license href=https://creativecommons.org/licenses/by-nc-nd/4.0/>知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议</a>. 进行许可，非商业转载请注明出处（作者，原文链接），商业转载请联系作者获得授权。</li></ul></div><br><div class="post-meta meta-tags"><ul class=clearfix><li><a href=/tags/%E5%AD%98%E5%82%A8 target=_blank>存储</a></li></ul></div></article><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//yourdiscussshortname.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a><div class="post bg-white"><script src=https://utteranc.es/client.js repo="your github repo" issue-term=pathname theme=github-light crossorigin=anonymous async></script></div></div><footer id=footer><div>&copy; 2025 <a href=https://blogs.xwnlearn.cn/>徐同学的博客 By 徐同学</a>
+| <a rel=nofollow target=_blank href=http://beian.miit.gov.cn/>皖ICP备2020020988号-1</a> | <a href=https://gohugo.io/ target=_black rel=nofollow><span class=badge-subject>Powered by</span><span class="badge-value bg-blue">Hugo</span></a> | <a href=https://github.com/flysnow-org/maupassant-hugo target=_black><span class=badge-subject>Theme</span><span class="badge-value bg-yellowgreen">Maupassant</span></a></div></footer><script type=text/javascript>window.MathJax={tex2jax:{inlineMath:[["$","$"]],processEscapes:!0}}</script><script src='//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script><script src=//cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js></script><a id=rocket href=#top></a><script type=text/javascript src='/js/totop.js?v=0.0.0' async></script><style type=text/css>div.highlight{position:relative;margin:1em 0}.copy-code{display:none;position:absolute;top:4px;right:4px;color:rgba(255,255,255,.8);background:rgba(78,78,78,.8);border-radius:var(--radius);padding:0 5px;font:inherit;user-select:none;cursor:pointer;border:0;--radius:8px}div.highlight:hover .copy-code,pre:hover .copy-code{display:block}</style><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script><script src=/js/douban.js></script></div><div id=secondary><section class=widget><form id=search action=https://blogs.xwnlearn.cn/search method=get accept-charset=utf-8 target=_blank _lpchecked=1><input type=text name=q maxlength=20 placeholder=Search>
+<input type=hidden name=sitesearch value=https://blogs.xwnlearn.cn/>
+<button type=submit class="submit icon-search"></button></form></section><section class=widget><h3 class=widget-title>最近文章</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/ title="Jenkins Pipeline 进阶：多平台账号关联与自动化部署" target=_blank>Jenkins Pipeline 进阶：多平台账号关联与自动化部署</a></li><li><a href=https://blogs.xwnlearn.cn/post/2025/%E9%AB%98%E5%8F%AF%E7%94%A8harbor/ title=高可用harbor target=_blank>高可用harbor</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/%E5%BF%AB%E9%80%9F%E6%9E%84%E5%BB%BAZabbix7.0%E9%AB%98%E5%8F%AF%E7%94%A8%E7%9B%91%E6%8E%A7%E6%96%B9%E6%A1%88/ title=快速构建Zabbix7.0高可用监控方案 target=_blank>快速构建Zabbix7.0高可用监控方案</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/Microk8s%E9%83%A8%E7%BD%B2kubeflow/ title=Microk8s部署kubeflow target=_blank>Microk8s部署kubeflow</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/K8sGPT%E5%BA%94%E7%94%A8/ title=K8sGPT应用 target=_blank>K8sGPT应用</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/LocalAI-k8sgpt-operator/ title=LocalAI+k8sgpt-operator target=_blank>LocalAI+k8sgpt-operator</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/ApisixRoute%E9%85%8D%E7%BD%AE%E5%90%8E%E7%AB%AF%E8%B6%85%E6%97%B6%E6%97%B6%E9%97%B4/ title=ApisixRoute配置后端超时时间 target=_blank>ApisixRoute配置后端超时时间</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/apisix-ingress%E4%B8%8Eapisix%E7%9B%91%E6%8E%A7/ title=apisix-ingress与apisix监控 target=_blank>apisix-ingress与apisix监控</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Prometheus/ title=Prometheus target=_blank>Prometheus</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Telegram-bot/ title=Telegram-bot target=_blank>Telegram-bot</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/categories/>分类</a></h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/categories/CI/CD/>CI/CD (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Go%E8%AF%AD%E8%A8%80/>Go语言 (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Kubernetes/>Kubernetes (17)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Linux/>Linux (21)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件 (7)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库 (9)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E7%9B%91%E6%8E%A7/>监控 (5)</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/tags/>标签</a></h3><div class=tagcloud><a href=https://blogs.xwnlearn.cn/tags/Docker/>Docker</a>
+<a href=https://blogs.xwnlearn.cn/tags/Go%E8%AF%AD%E8%A8%80/>Go语言</a>
+<a href=https://blogs.xwnlearn.cn/tags/Jenkins/>Jenkins</a>
+<a href=https://blogs.xwnlearn.cn/tags/Kubernetes/>Kubernetes</a>
+<a href=https://blogs.xwnlearn.cn/tags/Linux/>Linux</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pipeline/>Pipeline</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pod/>Pod</a>
+<a href=https://blogs.xwnlearn.cn/tags/Prometheus/>Prometheus</a>
+<a href=https://blogs.xwnlearn.cn/tags/Service/>Service</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSH/>SSH</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSL/>SSL</a>
+<a href=https://blogs.xwnlearn.cn/tags/Zabbix/>Zabbix</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E5%AD%98%E5%82%A8/>存储</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E7%9B%91%E6%8E%A7/>监控</a></div></section><section class=widget><h3 class=widget-title>友情链接</h3><ul class=widget-list><li><a target=_blank href=https://www.liwenzhou.com/ title=李文周的博客>李文周的博客</a></li></ul></section><section class=widget><h3 class=widget-title>其它</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/index.xml>文章 RSS</a></li></ul></section></div></div></div></div></body></html>

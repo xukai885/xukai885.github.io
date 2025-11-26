@@ -1,0 +1,668 @@
+<!doctype html><html lang=zh-hans><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>supervisor | 徐同学的博客</title><meta property="og:title" content="supervisor - 徐同学的博客"><meta property="og:type" content="article"><meta property="article:published_time" content='2022-03-14T08:00:00+08:00'><meta property="article:modified_time" content='2022-03-14T08:00:00+08:00'><meta name=Keywords content="kubernetes,k8s,linux,运维,数据库,mysql,监控,CI/CD,jenkins,docker,go语言,技术博客"><meta name=description content="supervisor安装使用介绍"><meta name=author content="徐同学"><meta property="og:url" content="https://blogs.xwnlearn.cn/post/2022/supervisor/"><link rel="shortcut icon" href=/favicon.ico type=image/x-icon><link rel=icon href=/favicon.png type=image/png><link rel="alternate icon" href=/favicon.png type=image/svg+xml><link rel=stylesheet href=/css/normalize.css><link rel=stylesheet href=/css/style.css><script type=text/javascript src=//cdn.bootcdn.net/ajax/libs/jquery/3.4.1/jquery.min.js></script><link href=https://cdn.bootcdn.net/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css rel=stylesheet><link rel=stylesheet href=/css/douban.css><link rel=stylesheet href=/css/other.css></head><body><header id=header class=clearfix><div class=container><div class=col-group><div class=site-name><a id=logo href=https://blogs.xwnlearn.cn/>徐同学的博客</a><p class=description>宝剑锋从磨砺出，梅花香自苦寒来✌️</p></div><div><nav id=nav-menu class=clearfix><a class=current href=https://blogs.xwnlearn.cn/>首页</a>
+<a href=https://blogs.xwnlearn.cn/archives/ title=归档>归档</a>
+<a href=https://blogs.xwnlearn.cn/about/ title=关于>关于</a></nav></div></div></div></header><div id=body><div class=container><div class=col-group><div class=col-8 id=main><div class=res-cons><style type=text/css>.post-toc{position:fixed;width:200px;margin-left:-210px;padding:5px 10px;font-family:Athelas,STHeiti,Microsoft Yahei,serif;font-size:12px;border:1px solid rgba(0,0,0,7%);border-radius:5px;background-color:rgba(255,255,255,.98);background-clip:padding-box;-webkit-box-shadow:1px 1px 2px rgba(0,0,0,.125);box-shadow:1px 1px 2px rgba(0,0,0,.125);word-wrap:break-word;white-space:nowrap;-webkit-box-sizing:border-box;box-sizing:border-box;z-index:999;cursor:pointer;max-height:70%;overflow-y:auto;overflow-x:hidden}.post-toc .post-toc-title{width:100%;margin:0 auto;font-size:20px;font-weight:400;text-transform:uppercase;text-align:center}.post-toc .post-toc-content{font-size:15px}.post-toc .post-toc-content>nav>ul{margin:10px 0}.post-toc .post-toc-content ul{padding-left:20px;list-style:square;margin:.5em;line-height:1.8em}.post-toc .post-toc-content ul ul{padding-left:15px;display:none}@media print,screen and (max-width:1057px){.post-toc{display:none}}</style><div class=post-toc style=position:absolute;top:188px><h2 class=post-toc-title>文章目录</h2><div class=post-toc-content><nav id=TableOfContents><ul><li><a href=#安装>安装</a></li><li><a href=#管理进程>管理进程</a></li><li><a href=#附录>附录</a></li></ul></nav></div></div><script type=text/javascript>$(document).ready(function(){if(e=$(".post-toc"),e.length){t=$("#main").offset().left,t<220&&e.css({width:t-10,"margin-left":0-t});var e,t,n=e.offset().top-20,s={start:{position:"absolute",top:n},process:{position:"fixed",top:20}};$(window).scroll(function(){var t=$(window).scrollTop();t<n?e.css(s.start):e.css(s.process)})}$("#TableOfContents").children().length<1&&$(".post-toc").remove()})</script><article class=post><header><h1 class=post-title>supervisor</h1></header><time datetime=2022-03-14T00:00:00Z class="post-meta meta-date dt-published">2022年3月14日</time><div class="post-meta meta-category"><span>&nbsp;|</span>
+<a href=/categories/Linux target=_blank>Linux</a></div><div class=clear style=display:none><div class=toc-article><div class=toc-title>文章目录</div></div></div><div class=post-content><p><a href=http://supervisord.org/index.html title=官网文档>Supervisor官网文档</a></p><h2 id=安装>安装</h2><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">29
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#centos7 yum安装</span>
+</span></span><span style=display:flex><span>1.安装epel包
+</span></span><span style=display:flex><span>	yum install epel-release -y
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@10 supervisord.d<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># supervisord --version</span>
+</span></span><span style=display:flex><span>3.4.0
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@10 supervisord.d<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># whereis supervisord</span>
+</span></span><span style=display:flex><span>supervisord: /usr/bin/supervisord /etc/supervisord.conf /etc/supervisord.d
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>/usr/bin/supervisord		<span style=color:#8b949e;font-style:italic>#负责管理子程序（server）</span>
+</span></span><span style=display:flex><span>/usr/bin/supervisorctl		<span style=color:#8b949e;font-style:italic>#命令行客户端（client）</span>
+</span></span><span style=display:flex><span>/etc/supervisord.conf		<span style=color:#8b949e;font-style:italic>#配置文件</span>
+</span></span><span style=display:flex><span>/etc/supervisord.d			<span style=color:#8b949e;font-style:italic>#存放进程的配置文件</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>2.启动
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@10 supervisord.d<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># systemctl start supervisord</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@10 supervisord.d<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># systemctl status supervisord</span>
+</span></span><span style=display:flex><span>● supervisord.service - Process Monitoring and Control Daemon
+</span></span><span style=display:flex><span>   Loaded: loaded <span style=color:#ff7b72;font-weight:700>(</span>/usr/lib/systemd/system/supervisord.service; disabled; vendor preset: disabled<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>   Active: active <span style=color:#ff7b72;font-weight:700>(</span>running<span style=color:#ff7b72;font-weight:700>)</span> since 日 2022-03-13 14:42:24 CST; 4s ago
+</span></span><span style=display:flex><span>  Process: <span style=color:#a5d6ff>49416</span> <span style=color:#79c0ff>ExecStart</span><span style=color:#ff7b72;font-weight:700>=</span>/usr/bin/supervisord -c /etc/supervisord.conf <span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff>code</span><span style=color:#ff7b72;font-weight:700>=</span>exited, <span style=color:#79c0ff>status</span><span style=color:#ff7b72;font-weight:700>=</span>0/SUCCESS<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span> Main PID: <span style=color:#a5d6ff>49419</span> <span style=color:#ff7b72;font-weight:700>(</span>supervisord<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>   CGroup: /system.slice/supervisord.service
+</span></span><span style=display:flex><span>           └─49419 /usr/bin/python /usr/bin/supervisord -c /etc/supervisord.conf
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>3月 <span style=color:#a5d6ff>13</span> 14:42:23 <span style=color:#a5d6ff>10</span> systemd<span style=color:#ff7b72;font-weight:700>[</span>1<span style=color:#ff7b72;font-weight:700>]</span>: Starting Process Monitoring and Control Daemon...
+</span></span><span style=display:flex><span>3月 <span style=color:#a5d6ff>13</span> 14:42:24 <span style=color:#a5d6ff>10</span> systemd<span style=color:#ff7b72;font-weight:700>[</span>1<span style=color:#ff7b72;font-weight:700>]</span>: Started Process Monitoring and Control Daemon.
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@10 supervisord.d<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># systemctl enable supervisord</span>
+</span></span><span style=display:flex><span>Created symlink from /etc/systemd/system/multi-user.target.wants/supervisord.service to /usr/lib/systemd/system/supervisord.service.
+</span></span></code></pre></td></tr></table></div></div><h2 id=管理进程>管理进程</h2><p>添加进程管理</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">29
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>1.tomcat
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@10 supervisord.d<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cat tomcat.ini </span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>program:tomcat<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>command</span><span style=color:#ff7b72;font-weight:700>=</span>/opt/apache-tomcat-8.5.76/bin/catalina.sh run
+</span></span><span style=display:flex><span><span style=color:#79c0ff>autostart</span><span style=color:#ff7b72;font-weight:700>=</span>true
+</span></span><span style=display:flex><span><span style=color:#79c0ff>autorestart</span><span style=color:#ff7b72;font-weight:700>=</span>true ;程序退出后自动重启<span style=color:#ff7b72;font-weight:700>[</span>unexpected,true,false<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>startretries</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>3</span>   ;启动失败重试次数
+</span></span><span style=display:flex><span><span style=color:#79c0ff>stdout_logfile</span><span style=color:#ff7b72;font-weight:700>=</span>/opt/apache-tomcat-8.5.76/logs/catalina.out ;日志
+</span></span><span style=display:flex><span><span style=color:#79c0ff>stderr_logfile</span><span style=color:#ff7b72;font-weight:700>=</span>/opt/apache-tomcat-8.5.76/logs/catalina.out
+</span></span><span style=display:flex><span><span style=color:#79c0ff>environment</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#79c0ff>JAVA_HOME</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;/usr/local/jdk&#34;</span>,JAVA_BIN<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;/usr/local/jdk/bin&#34;</span>
+</span></span><span style=display:flex><span>2.nginx
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@10 supervisord.d<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cat nginx.ini </span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>program:nginx<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>command</span><span style=color:#ff7b72;font-weight:700>=</span>/usr/local/nginx/sbin/nginx -g <span style=color:#a5d6ff>&#34;daemon off;&#34;</span> 
+</span></span><span style=display:flex><span><span style=color:#79c0ff>autostart</span><span style=color:#ff7b72;font-weight:700>=</span>false
+</span></span><span style=display:flex><span><span style=color:#79c0ff>autorestart</span><span style=color:#ff7b72;font-weight:700>=</span>true ;程序退出后自动重启<span style=color:#ff7b72;font-weight:700>[</span>unexpected,true,false<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>startretries</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>3</span>   ;启动失败重试次数
+</span></span><span style=display:flex><span>3.prometheus
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@10 supervisord.d<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># cat prometheus.ini </span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>program:prometheus<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>command</span><span style=color:#ff7b72;font-weight:700>=</span>/opt/prometheus-2.32.1.linux-amd64/prometheus --storage.tsdb.path<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;data/&#34;</span> --config.file<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;/opt/prometheus-2.32.1.linux-amd64/prometheus.yml&#34;</span> --web.listen-address<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;0.0.0.0:1900&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>autostart</span><span style=color:#ff7b72;font-weight:700>=</span>false
+</span></span><span style=display:flex><span><span style=color:#79c0ff>autorestart</span><span style=color:#ff7b72;font-weight:700>=</span>true ;程序退出后自动重启<span style=color:#ff7b72;font-weight:700>[</span>unexpected,true,false<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>startretries</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>3</span>   ;启动失败重试次数
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>#查看状态</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>root@10 supervisord.d<span style=color:#ff7b72;font-weight:700>]</span><span style=color:#8b949e;font-style:italic># supervisorctl status</span>
+</span></span><span style=display:flex><span>nginx                            RUNNING   pid 85318, uptime 0:16:37
+</span></span><span style=display:flex><span>prometheus                       RUNNING   pid 86225, uptime 0:02:14
+</span></span><span style=display:flex><span>tomcat                           RUNNING   pid 83863, uptime 0:40:49
+</span></span></code></pre></td></tr></table></div></div><h2 id=附录>附录</h2><p>1.子进程配置文件</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>program:tomcat<span style=color:#ff7b72;font-weight:700>]</span>		;程序名称
+</span></span><span style=display:flex><span><span style=color:#79c0ff>command</span><span style=color:#ff7b72;font-weight:700>=</span>/		;程序路径
+</span></span><span style=display:flex><span><span style=color:#79c0ff>autostart</span><span style=color:#ff7b72;font-weight:700>=</span>true	;是否跟随supervisord启动启动
+</span></span><span style=display:flex><span><span style=color:#79c0ff>startsecs</span><span style=color:#ff7b72;font-weight:700>=</span>10	;启动十秒后没有异常退出，表示正常启动
+</span></span><span style=display:flex><span><span style=color:#79c0ff>autorestart</span><span style=color:#ff7b72;font-weight:700>=</span>true;程序退出后自启动<span style=color:#ff7b72;font-weight:700>[</span>unexpected,true,false<span style=color:#ff7b72;font-weight:700>]</span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>startretries</span><span style=color:#ff7b72;font-weight:700>=</span>3	;启动失败重试次数
+</span></span><span style=display:flex><span><span style=color:#79c0ff>user</span><span style=color:#ff7b72;font-weight:700>=</span>root		;默认root
+</span></span><span style=display:flex><span><span style=color:#79c0ff>redirect_stderr</span><span style=color:#ff7b72;font-weight:700>=</span>true;将stderr重定向到stdout，默认false
+</span></span><span style=display:flex><span><span style=color:#79c0ff>stdout_logfile</span><span style=color:#ff7b72;font-weight:700>=</span>/;标准日志输出位置；
+</span></span><span style=display:flex><span><span style=color:#79c0ff>stopasgroup</span><span style=color:#ff7b72;font-weight:700>=</span>false;进程被杀时,是否向这个进程组发送stop信号，包括子进程
+</span></span><span style=display:flex><span><span style=color:#79c0ff>killasgroup</span><span style=color:#ff7b72;font-weight:700>=</span>false;向进程发送kill信号，包括子进程
+</span></span></code></pre></td></tr></table></div></div><p>2.配置文件 <a href=https://www.cnblogs.com/ajianbeyourself/p/5534737.html title=转自>转自</a></p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 71
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 72
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 73
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 74
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 75
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 76
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 77
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 78
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 79
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 80
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 81
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 82
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 83
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 84
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 85
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 86
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 87
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 88
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 89
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 90
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 91
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 92
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 93
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 94
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 95
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 96
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 97
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 98
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 99
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">100
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">101
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">102
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">103
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">104
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">105
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">106
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">107
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">108
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">109
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">110
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">111
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">112
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">113
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">114
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">115
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">116
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">117
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">118
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">119
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">120
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">121
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">122
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">123
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">124
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">125
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">126
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">127
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">128
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">129
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">130
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">131
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">132
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">133
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">134
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">135
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">136
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">137
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">138
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">139
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">140
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">141
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">142
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">143
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">144
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">145
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">146
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">147
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">148
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">149
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">150
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">151
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">152
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">153
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">154
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">155
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">156
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">157
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">158
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">159
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">160
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">161
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">162
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">163
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">164
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">165
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">166
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">167
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">168
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">169
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">170
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">171
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">172
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">173
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">174
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">175
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">176
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">177
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">178
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">179
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">180
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">181
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">182
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">183
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">184
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">185
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">186
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">187
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">188
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">189
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">190
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">191
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">192
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">193
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">194
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">195
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">196
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">197
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">198
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">199
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">200
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">201
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">202
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">203
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">204
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">205
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">206
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">207
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">208
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">209
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">210
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">211
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">212
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">213
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">214
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">215
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">216
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">217
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">218
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">219
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">220
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">221
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">222
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">223
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">224
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">225
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">226
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">227
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">228
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">229
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">230
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">231
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">232
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">233
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">234
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">235
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">236
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">237
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">238
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">239
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">240
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">241
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">242
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">243
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">244
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">245
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">246
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">247
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">248
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">249
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">250
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">251
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">252
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">253
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>unix_http_server<span style=color:#ff7b72;font-weight:700>]</span>            
+</span></span><span style=display:flex><span><span style=color:#79c0ff>file</span><span style=color:#ff7b72;font-weight:700>=</span>/tmp/supervisor.sock   ; socket文件的路径，supervisorctl用XML_RPC和supervisord通信就是通过它进行
+</span></span><span style=display:flex><span>                              的。如果不设置的话，supervisorctl也就不能用了  
+</span></span><span style=display:flex><span>                              不设置的话，默认为none。 非必须设置        
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>chmod</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>0700</span>                 ; 这个简单，就是修改上面的那个socket文件的权限为0700
+</span></span><span style=display:flex><span>                              不设置的话，默认为0700。 非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>chown</span><span style=color:#ff7b72;font-weight:700>=</span>nobody:nogroup       ; 这个一样，修改上面的那个socket文件的属组为user.group
+</span></span><span style=display:flex><span>                              不设置的话，默认为启动supervisord进程的用户及属组。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>username</span><span style=color:#ff7b72;font-weight:700>=</span>user              ; 使用supervisorctl连接的时候，认证的用户
+</span></span><span style=display:flex><span>                               不设置的话，默认为不需要用户。 非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>password</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>123</span>               ; 和上面的用户名对应的密码，可以直接使用明码，也可以使用SHA加密
+</span></span><span style=display:flex><span>                              如：<span style=color:#ff7b72;font-weight:700>{</span>SHA<span style=color:#ff7b72;font-weight:700>}</span>82ab876d1387bfafe46cc1c8a2ef074eae50cb1d
+</span></span><span style=display:flex><span>                              默认不设置。。。非必须设置
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>;<span style=color:#ff7b72;font-weight:700>[</span>inet_http_server<span style=color:#ff7b72;font-weight:700>]</span>         ; 侦听在TCP上的socket，Web Server和远程的supervisorctl都要用到他
+</span></span><span style=display:flex><span>                              不设置的话，默认为不开启。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>port</span><span style=color:#ff7b72;font-weight:700>=</span>127.0.0.1:9001        ; 这个是侦听的IP和端口，侦听所有IP用 :9001或*:9001。
+</span></span><span style=display:flex><span>                              这个必须设置，只要上面的<span style=color:#ff7b72;font-weight:700>[</span>inet_http_server<span style=color:#ff7b72;font-weight:700>]</span>开启了，就必须设置它
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>username</span><span style=color:#ff7b72;font-weight:700>=</span>user              ; 这个和上面的uinx_http_server一个样。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>password</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>123</span>               ; 这个也一个样。非必须设置
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>supervisord<span style=color:#ff7b72;font-weight:700>]</span>                ;这个主要是定义supervisord这个服务端进程的一些参数的
+</span></span><span style=display:flex><span>                              这个必须设置，不设置，supervisor就不用干活了
+</span></span><span style=display:flex><span><span style=color:#79c0ff>logfile</span><span style=color:#ff7b72;font-weight:700>=</span>/tmp/supervisord.log ; 这个是supervisord这个主进程的日志路径，注意和子进程的日志不搭嘎。
+</span></span><span style=display:flex><span>                               默认路径<span style=color:#79c0ff>$CWD</span>/supervisord.log，<span style=color:#79c0ff>$CWD是当前目录</span>。。非必须设置
+</span></span><span style=display:flex><span><span style=color:#79c0ff>logfile_maxbytes</span><span style=color:#ff7b72;font-weight:700>=</span>50MB        ; 这个是上面那个日志文件的最大的大小，当超过50M的时候，会生成一个新的日 
+</span></span><span style=display:flex><span>                               志文件。当设置为0时，表示不限制文件大小
+</span></span><span style=display:flex><span>                               默认值是50M，非必须设置。              
+</span></span><span style=display:flex><span><span style=color:#79c0ff>logfile_backups</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>10</span>           ; 日志文件保持的数量，supervisor在启动程序时，会自动创建10个buckup文件，用于log rotate
+</span></span><span style=display:flex><span>                               当设置为0时，表示不限制文件的数量。
+</span></span><span style=display:flex><span>                               默认情况下为10。。。非必须设置
+</span></span><span style=display:flex><span><span style=color:#79c0ff>loglevel</span><span style=color:#ff7b72;font-weight:700>=</span>info                ; 日志级别，有critical, error, warn, info, debug, trace, or blather等
+</span></span><span style=display:flex><span>                               默认为info。。。非必须设置项
+</span></span><span style=display:flex><span><span style=color:#79c0ff>pidfile</span><span style=color:#ff7b72;font-weight:700>=</span>/tmp/supervisord.pid ; supervisord的pid文件路径。
+</span></span><span style=display:flex><span>                               默认为<span style=color:#79c0ff>$CWD</span>/supervisord.pid。。。非必须设置
+</span></span><span style=display:flex><span><span style=color:#79c0ff>nodaemon</span><span style=color:#ff7b72;font-weight:700>=</span>false               ; 如果是true，supervisord进程将在前台运行
+</span></span><span style=display:flex><span>                               默认为false，也就是后台以守护进程运行。。。非必须设置
+</span></span><span style=display:flex><span><span style=color:#79c0ff>minfds</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>1024</span>                  ; 这个是最少系统空闲的文件描述符，低于这个值supervisor将不会启动。
+</span></span><span style=display:flex><span>                               系统的文件描述符在这里设置cat /proc/sys/fs/file-max
+</span></span><span style=display:flex><span>                               默认情况下为1024。。。非必须设置
+</span></span><span style=display:flex><span><span style=color:#79c0ff>minprocs</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>200</span>                 ; 最小可用的进程描述符，低于这个值supervisor也将不会正常启动。
+</span></span><span style=display:flex><span>                              ulimit  -u这个命令，可以查看linux下面用户的最大进程数
+</span></span><span style=display:flex><span>                              默认为200。。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>umask</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>022</span>                   ; 进程创建文件的掩码
+</span></span><span style=display:flex><span>                               默认为022。。非必须设置项
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>user</span><span style=color:#ff7b72;font-weight:700>=</span>chrism                 ; 这个参数可以设置一个非root用户，当我们以root用户启动supervisord之后。
+</span></span><span style=display:flex><span>                               我这里面设置的这个用户，也可以对supervisord进行管理
+</span></span><span style=display:flex><span>                               默认情况是不设置。。。非必须设置项
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>identifier</span><span style=color:#ff7b72;font-weight:700>=</span>supervisor       ; 这个参数是supervisord的标识符，主要是给XML_RPC用的。当你有多个
+</span></span><span style=display:flex><span>                               supervisor的时候，而且想调用XML_RPC统一管理，就需要为每个
+</span></span><span style=display:flex><span>                               supervisor设置不同的标识符了
+</span></span><span style=display:flex><span>                               默认是supervisord。。。非必需设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>directory</span><span style=color:#ff7b72;font-weight:700>=</span>/tmp              ; 这个参数是当supervisord作为守护进程运行的时候，设置这个参数的话，启动
+</span></span><span style=display:flex><span>                               supervisord进程之前，会先切换到这个目录
+</span></span><span style=display:flex><span>                               默认不设置。。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>nocleanup</span><span style=color:#ff7b72;font-weight:700>=</span>true              ; 这个参数当为false的时候，会在supervisord进程启动的时候，把以前子进程
+</span></span><span style=display:flex><span>                               产生的日志文件<span style=color:#ff7b72;font-weight:700>(</span>路径为AUTO的情况下<span style=color:#ff7b72;font-weight:700>)</span>清除掉。有时候咱们想要看历史日志，当 
+</span></span><span style=display:flex><span>                               然不想日志被清除了。所以可以设置为true
+</span></span><span style=display:flex><span>                               默认是false，有调试需求的同学可以设置为true。。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>childlogdir</span><span style=color:#ff7b72;font-weight:700>=</span>/tmp            ; 当子进程日志路径为AUTO的时候，子进程日志文件的存放路径。
+</span></span><span style=display:flex><span>                               默认路径是这个东西，执行下面的这个命令看看就OK了，处理的东西就默认路径
+</span></span><span style=display:flex><span>                               python -c <span style=color:#a5d6ff>&#34;import tempfile;print tempfile.gettempdir()&#34;</span>
+</span></span><span style=display:flex><span>                               非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>environment</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#79c0ff>KEY</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;value&#34;</span>     ; 这个是用来设置环境变量的，supervisord在linux中启动默认继承了linux的
+</span></span><span style=display:flex><span>                               环境变量，在这里可以设置supervisord进程特有的其他环境变量。
+</span></span><span style=display:flex><span>                               supervisord启动子进程时，子进程会拷贝父进程的内存空间内容。 所以设置的
+</span></span><span style=display:flex><span>                               这些环境变量也会被子进程继承。
+</span></span><span style=display:flex><span>                               小例子：environment<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#79c0ff>name</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;haha&#34;</span>,age<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;hehe&#34;</span>
+</span></span><span style=display:flex><span>                               默认为不设置。。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>strip_ansi</span><span style=color:#ff7b72;font-weight:700>=</span>false            ; 这个选项如果设置为true，会清除子进程日志中的所有ANSI 序列。什么是ANSI
+</span></span><span style=display:flex><span>                               序列呢？就是我们的<span style=color:#79c0ff>\n</span>,<span style=color:#79c0ff>\t</span>这些东西。
+</span></span><span style=display:flex><span>                               默认为false。。。非必须设置
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>; the below section must remain in the config file <span style=color:#ff7b72>for</span> RPC
+</span></span><span style=display:flex><span>; <span style=color:#ff7b72;font-weight:700>(</span>supervisorctl/web interface<span style=color:#ff7b72;font-weight:700>)</span> to work, additional interfaces may be
+</span></span><span style=display:flex><span>; added by defining them in separate rpcinterface: sections
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>rpcinterface:supervisor<span style=color:#ff7b72;font-weight:700>]</span>    ;这个选项是给XML_RPC用的，当然你如果想使用supervisord或者web server 这 
+</span></span><span style=display:flex><span>                              个选项必须要开启的
+</span></span><span style=display:flex><span>supervisor.rpcinterface_factory <span style=color:#ff7b72;font-weight:700>=</span> supervisor.rpcinterface:make_main_rpcinterface 
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>[</span>supervisorctl<span style=color:#ff7b72;font-weight:700>]</span>              ;这个主要是针对supervisorctl的一些配置  
+</span></span><span style=display:flex><span><span style=color:#79c0ff>serverurl</span><span style=color:#ff7b72;font-weight:700>=</span>unix:///tmp/supervisor.sock ; 这个是supervisorctl本地连接supervisord的时候，本地UNIX socket
+</span></span><span style=display:flex><span>                                        路径，注意这个是和前面的<span style=color:#ff7b72;font-weight:700>[</span>unix_http_server<span style=color:#ff7b72;font-weight:700>]</span>对应的
+</span></span><span style=display:flex><span>                                        默认值就是unix:///tmp/supervisor.sock。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>serverurl</span><span style=color:#ff7b72;font-weight:700>=</span>http://127.0.0.1:9001 ; 这个是supervisorctl远程连接supervisord的时候，用到的TCP socket路径
+</span></span><span style=display:flex><span>                                   注意这个和前面的<span style=color:#ff7b72;font-weight:700>[</span>inet_http_server<span style=color:#ff7b72;font-weight:700>]</span>对应
+</span></span><span style=display:flex><span>                                   默认就是http://127.0.0.1:9001。。。非必须项
+</span></span><span style=display:flex><span>                               
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>username</span><span style=color:#ff7b72;font-weight:700>=</span>chris              ; 用户名
+</span></span><span style=display:flex><span>                               默认空。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>password</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>123</span>                ; 密码
+</span></span><span style=display:flex><span>                              默认空。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>prompt</span><span style=color:#ff7b72;font-weight:700>=</span>mysupervisor         ; 输入用户名密码时候的提示符
+</span></span><span style=display:flex><span>                               默认supervisor。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>history_file</span><span style=color:#ff7b72;font-weight:700>=</span>~/.sc_history  ; 这个参数和shell中的history类似，我们可以用上下键来查找前面执行过的命令
+</span></span><span style=display:flex><span>                               默认是no file的。。所以我们想要有这种功能，必须指定一个文件。。。非
+</span></span><span style=display:flex><span>                               必须设置
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>; The below sample program section shows all possible program subsection values,
+</span></span><span style=display:flex><span>; create one or more <span style=color:#a5d6ff>&#39;real&#39;</span> program: sections to be able to control them under
+</span></span><span style=display:flex><span>; supervisor.
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>;<span style=color:#ff7b72;font-weight:700>[</span>program:theprogramname<span style=color:#ff7b72;font-weight:700>]</span>      ;这个就是咱们要管理的子进程了，<span style=color:#a5d6ff>&#34;:&#34;</span>后面的是名字，最好别乱写和实际进程
+</span></span><span style=display:flex><span>                                有点关联最好。这样的program我们可以设置一个或多个，一个program就是
+</span></span><span style=display:flex><span>                                要被管理的一个进程
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>command</span><span style=color:#ff7b72;font-weight:700>=</span>/bin/cat              ; 这个就是我们的要启动进程的命令路径了，可以带参数
+</span></span><span style=display:flex><span>                                例子：/home/test.py -a <span style=color:#a5d6ff>&#39;hehe&#39;</span>
+</span></span><span style=display:flex><span>                                有一点需要注意的是，我们的command只能是那种在终端运行的进程，不能是
+</span></span><span style=display:flex><span>                                守护进程。这个想想也知道了，比如说command<span style=color:#ff7b72;font-weight:700>=</span>service httpd start。
+</span></span><span style=display:flex><span>                                httpd这个进程被linux的service管理了，我们的supervisor再去启动这个命令
+</span></span><span style=display:flex><span>                                这已经不是严格意义的子进程了。
+</span></span><span style=display:flex><span>                                这个是个必须设置的项
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>process_name</span><span style=color:#ff7b72;font-weight:700>=</span>%<span style=color:#ff7b72;font-weight:700>(</span>program_name<span style=color:#ff7b72;font-weight:700>)</span>s ; 这个是进程名，如果我们下面的numprocs参数为1的话，就不用管这个参数
+</span></span><span style=display:flex><span>                                 了，它默认值%<span style=color:#ff7b72;font-weight:700>(</span>program_name<span style=color:#ff7b72;font-weight:700>)</span>s也就是上面的那个program冒号后面的名字，
+</span></span><span style=display:flex><span>                                 但是如果numprocs为多个的话，那就不能这么干了。想想也知道，不可能每个
+</span></span><span style=display:flex><span>                                 进程都用同一个进程名吧。
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                                
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>numprocs</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>1</span>                    ; 启动进程的数目。当不为1时，就是进程池的概念，注意process_name的设置
+</span></span><span style=display:flex><span>                                 默认为1    。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>directory</span><span style=color:#ff7b72;font-weight:700>=</span>/tmp                ; 进程运行前，会前切换到这个目录
+</span></span><span style=display:flex><span>                                 默认不设置。。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>umask</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>022</span>                     ; 进程掩码，默认none，非必须
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>priority</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>999</span>                  ; 子进程启动关闭优先级，优先级低的，最先启动，关闭的时候最后关闭
+</span></span><span style=display:flex><span>                                 默认值为999 。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>autostart</span><span style=color:#ff7b72;font-weight:700>=</span>true                ; 如果是true的话，子进程将在supervisord启动后被自动启动
+</span></span><span style=display:flex><span>                                 默认就是true   。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>autorestart</span><span style=color:#ff7b72;font-weight:700>=</span>unexpected        ; 这个是设置子进程挂掉后自动重启的情况，有三个选项，false,unexpected
+</span></span><span style=display:flex><span>                                 和true。如果为false的时候，无论什么情况下，都不会被重新启动，
+</span></span><span style=display:flex><span>                                 如果为unexpected，只有当进程的退出码不在下面的exitcodes里面定义的退 
+</span></span><span style=display:flex><span>                                 出码的时候，才会被自动重启。当为true的时候，只要子进程挂掉，将会被无
+</span></span><span style=display:flex><span>                                 条件的重启
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>startsecs</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>1</span>                   ; 这个选项是子进程启动多少秒之后，此时状态如果是running，则我们认为启
+</span></span><span style=display:flex><span>                                 动成功了
+</span></span><span style=display:flex><span>                                 默认值为1 。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>startretries</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>3</span>                ; 当进程启动失败后，最大尝试启动的次数。。当超过3次后，supervisor将把
+</span></span><span style=display:flex><span>                                 此进程的状态置为FAIL
+</span></span><span style=display:flex><span>                                 默认值为3 。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>exitcodes</span><span style=color:#ff7b72;font-weight:700>=</span>0,2                 ; <span style=color:#79c0ff>注意和上面的的autorestart</span><span style=color:#ff7b72;font-weight:700>=</span>unexpected对应。。exitcodes里面的定义的
+</span></span><span style=display:flex><span>                                 退出码是expected的。
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stopsignal</span><span style=color:#ff7b72;font-weight:700>=</span>QUIT               ; 进程停止信号，可以为TERM, HUP, INT, QUIT, KILL, USR1, or USR2等信号
+</span></span><span style=display:flex><span>                                  默认为TERM 。。当用设定的信号去干掉进程，退出码会被认为是expected
+</span></span><span style=display:flex><span>                                  非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stopwaitsecs</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>10</span>               ; 这个是当我们向子进程发送stopsignal信号后，到系统返回信息
+</span></span><span style=display:flex><span>                                 给supervisord，所等待的最大时间。 超过这个时间，supervisord会向该
+</span></span><span style=display:flex><span>                                 子进程发送一个强制kill的信号。
+</span></span><span style=display:flex><span>                                 默认为10秒。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stopasgroup</span><span style=color:#ff7b72;font-weight:700>=</span>false             ; 这个东西主要用于，supervisord管理的子进程，这个子进程本身还有
+</span></span><span style=display:flex><span>                                 子进程。那么我们如果仅仅干掉supervisord的子进程的话，子进程的子进程
+</span></span><span style=display:flex><span>                                 有可能会变成孤儿进程。所以咱们可以设置可个选项，把整个该子进程的
+</span></span><span style=display:flex><span>                                 整个进程组都干掉。 设置为true的话，一般killasgroup也会被设置为true。
+</span></span><span style=display:flex><span>                                 需要注意的是，该选项发送的是stop信号
+</span></span><span style=display:flex><span>                                 默认为false。。非必须设置。。
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>killasgroup</span><span style=color:#ff7b72;font-weight:700>=</span>false             ; 这个和上面的stopasgroup类似，不过发送的是kill信号
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>user</span><span style=color:#ff7b72;font-weight:700>=</span>chrism                   ; 如果supervisord是root启动，我们在这里设置这个非root用户，可以用来
+</span></span><span style=display:flex><span>                                 管理该program
+</span></span><span style=display:flex><span>                                 默认不设置。。。非必须设置项
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>redirect_stderr</span><span style=color:#ff7b72;font-weight:700>=</span>true          ; 如果为true，则stderr的日志会被写入stdout日志文件中
+</span></span><span style=display:flex><span>                                 默认为false，非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stdout_logfile</span><span style=color:#ff7b72;font-weight:700>=</span>/a/path        ; 子进程的stdout的日志路径，可以指定路径，AUTO，none等三个选项。
+</span></span><span style=display:flex><span>                                 设置为none的话，将没有日志产生。设置为AUTO的话，将随机找一个地方
+</span></span><span style=display:flex><span>                                 生成日志文件，而且当supervisord重新启动的时候，以前的日志文件会被
+</span></span><span style=display:flex><span>                                 清空。当 <span style=color:#79c0ff>redirect_stderr</span><span style=color:#ff7b72;font-weight:700>=</span>true的时候，sterr也会写进这个日志文件
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stdout_logfile_maxbytes</span><span style=color:#ff7b72;font-weight:700>=</span>1MB   ; 日志文件最大大小，和<span style=color:#ff7b72;font-weight:700>[</span>supervisord<span style=color:#ff7b72;font-weight:700>]</span>中定义的一样。默认为50
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stdout_logfile_backups</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>10</span>     ; 和<span style=color:#ff7b72;font-weight:700>[</span>supervisord<span style=color:#ff7b72;font-weight:700>]</span>定义的一样。默认10
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stdout_capture_maxbytes</span><span style=color:#ff7b72;font-weight:700>=</span>1MB   ; 这个东西是设定capture管道的大小，当值不为0的时候，子进程可以从stdout
+</span></span><span style=display:flex><span>                                 发送信息，而supervisor可以根据信息，发送相应的event。
+</span></span><span style=display:flex><span>                                 默认为0，为0的时候表达关闭管道。。。非必须项
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stdout_events_enabled</span><span style=color:#ff7b72;font-weight:700>=</span>false   ; 当设置为ture的时候，当子进程由stdout向文件描述符中写日志的时候，将
+</span></span><span style=display:flex><span>                                 触发supervisord发送PROCESS_LOG_STDOUT类型的event
+</span></span><span style=display:flex><span>                                 默认为false。。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stderr_logfile</span><span style=color:#ff7b72;font-weight:700>=</span>/a/path        ; 这个东西是设置stderr写的日志路径，当redirect_stderr<span style=color:#ff7b72;font-weight:700>=</span>true。这个就不用
+</span></span><span style=display:flex><span>                                 设置了，设置了也是白搭。因为它会被写入stdout_logfile的同一个文件中
+</span></span><span style=display:flex><span>                                 默认为AUTO，也就是随便找个地存，supervisord重启被清空。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stderr_logfile_maxbytes</span><span style=color:#ff7b72;font-weight:700>=</span>1MB   ; 这个出现好几次了，就不重复了
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stderr_logfile_backups</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>10</span>     ; 这个也是
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stderr_capture_maxbytes</span><span style=color:#ff7b72;font-weight:700>=</span>1MB   ; 这个一样，和stdout_capture一样。 默认为0，关闭状态
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stderr_events_enabled</span><span style=color:#ff7b72;font-weight:700>=</span>false   ; 这个也是一样，默认为false
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>environment</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#79c0ff>A</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;1&#34;</span>,B<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;2&#34;</span>       ; 这个是该子进程的环境变量，和别的子进程是不共享的
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>serverurl</span><span style=color:#ff7b72;font-weight:700>=</span>AUTO                ; 
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>; The below sample eventlistener section shows all possible
+</span></span><span style=display:flex><span>; eventlistener subsection values, create one or more <span style=color:#a5d6ff>&#39;real&#39;</span>
+</span></span><span style=display:flex><span>; eventlistener: sections to be able to handle event notifications
+</span></span><span style=display:flex><span>; sent by supervisor.
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>;<span style=color:#ff7b72;font-weight:700>[</span>eventlistener:theeventlistenername<span style=color:#ff7b72;font-weight:700>]</span> ;这个东西其实和program的地位是一样的，也是suopervisor启动的子进
+</span></span><span style=display:flex><span>                                       程，不过它干的活是订阅supervisord发送的event。他的名字就叫
+</span></span><span style=display:flex><span>                                       listener了。我们可以在listener里面做一系列处理，比如报警等等
+</span></span><span style=display:flex><span>                                       楼主这两天干的活，就是弄的这玩意
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>command</span><span style=color:#ff7b72;font-weight:700>=</span>/bin/eventlistener    ; 这个和上面的program一样，表示listener的可执行文件的路径
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>process_name</span><span style=color:#ff7b72;font-weight:700>=</span>%<span style=color:#ff7b72;font-weight:700>(</span>program_name<span style=color:#ff7b72;font-weight:700>)</span>s ; 这个也一样，进程名，当下面的numprocs为多个的时候，才需要。否则默认就
+</span></span><span style=display:flex><span>                                 OK了
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>numprocs</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>1</span>                    ; 相同的listener启动的个数
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>events</span><span style=color:#ff7b72;font-weight:700>=</span>EVENT                  ; event事件的类型，也就是说，只有写在这个地方的事件类型。才会被发送
+</span></span><span style=display:flex><span>                      
+</span></span><span style=display:flex><span>                                 
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>buffer_size</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>10</span>                ; 这个是event队列缓存大小，单位不太清楚，楼主猜测应该是个吧。当buffer
+</span></span><span style=display:flex><span>                                 超过10的时候，最旧的event将会被清除，并把新的event放进去。
+</span></span><span style=display:flex><span>                                 默认值为10。。非必须选项
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>directory</span><span style=color:#ff7b72;font-weight:700>=</span>/tmp                ; 进程执行前，会切换到这个目录下执行
+</span></span><span style=display:flex><span>                                 默认为不切换。。。非必须
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>umask</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>022</span>                     ; 淹没，默认为none，不说了
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>priority</span><span style=color:#ff7b72;font-weight:700>=</span>-1                   ; 启动优先级，默认-1，也不扯了
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>autostart</span><span style=color:#ff7b72;font-weight:700>=</span>true                ; 是否随supervisord启动一起启动，默认true
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>autorestart</span><span style=color:#ff7b72;font-weight:700>=</span>unexpected        ; 是否自动重启，和program一个样，分true,false,unexpected等，注意
+</span></span><span style=display:flex><span>                                  unexpected和exitcodes的关系
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>startsecs</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>1</span>                   ; 也是一样，进程启动后跑了几秒钟，才被认定为成功启动，默认1
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>startretries</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>3</span>                ; 失败最大尝试次数，默认3
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>exitcodes</span><span style=color:#ff7b72;font-weight:700>=</span>0,2                 ; 期望或者说预料中的进程退出码，
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stopsignal</span><span style=color:#ff7b72;font-weight:700>=</span>QUIT               ; 干掉进程的信号，默认为TERM，比如设置为QUIT，那么如果QUIT来干这个进程
+</span></span><span style=display:flex><span>                                 那么会被认为是正常维护，退出码也被认为是expected中的
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stopwaitsecs</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>10</span>               ; max num secs to wait b4 SIGKILL <span style=color:#ff7b72;font-weight:700>(</span>default 10<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stopasgroup</span><span style=color:#ff7b72;font-weight:700>=</span>false             ; send stop signal to the UNIX process group <span style=color:#ff7b72;font-weight:700>(</span>default false<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>killasgroup</span><span style=color:#ff7b72;font-weight:700>=</span>false             ; SIGKILL the UNIX process group <span style=color:#ff7b72;font-weight:700>(</span>def false<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>user</span><span style=color:#ff7b72;font-weight:700>=</span>chrism                   ;设置普通用户，可以用来管理该listener进程。
+</span></span><span style=display:flex><span>                                默认为空。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>redirect_stderr</span><span style=color:#ff7b72;font-weight:700>=</span>true          ; 为true的话，stderr的log会并入stdout的log里面
+</span></span><span style=display:flex><span>                                默认为false。。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stdout_logfile</span><span style=color:#ff7b72;font-weight:700>=</span>/a/path        ; 这个不说了，好几遍了
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stdout_logfile_maxbytes</span><span style=color:#ff7b72;font-weight:700>=</span>1MB   ; 这个也是
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stdout_logfile_backups</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>10</span>     ; 这个也是
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stdout_events_enabled</span><span style=color:#ff7b72;font-weight:700>=</span>false   ; 这个其实是错的，listener是不能发送event
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stderr_logfile</span><span style=color:#ff7b72;font-weight:700>=</span>/a/path        ; 这个也是
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stderr_logfile_maxbytes</span><span style=color:#ff7b72;font-weight:700>=</span>1MB   ; 这个也是
+</span></span><span style=display:flex><span>;stderr_logfile_backups        ; 这个不说了
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>stderr_events_enabled</span><span style=color:#ff7b72;font-weight:700>=</span>false   ; 这个也是错的，listener不能发送event
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>environment</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#79c0ff>A</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;1&#34;</span>,B<span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>&#34;2&#34;</span>       ; 这个是该子进程的环境变量
+</span></span><span style=display:flex><span>                                 默认为空。。。非必须设置
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>serverurl</span><span style=color:#ff7b72;font-weight:700>=</span>AUTO                ; override serverurl computation <span style=color:#ff7b72;font-weight:700>(</span>childutils<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>; The below sample group section shows all possible group values,
+</span></span><span style=display:flex><span>; create one or more <span style=color:#a5d6ff>&#39;real&#39;</span> group: sections to create <span style=color:#a5d6ff>&#34;heterogeneous&#34;</span>
+</span></span><span style=display:flex><span>; process groups.
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>;<span style=color:#ff7b72;font-weight:700>[</span>group:thegroupname<span style=color:#ff7b72;font-weight:700>]</span>  ;这个东西就是给programs分组，划分到组里面的program。我们就不用一个一个去操作了
+</span></span><span style=display:flex><span>                         我们可以对组名进行统一的操作。 注意：program被划分到组里面之后，就相当于原来
+</span></span><span style=display:flex><span>                         的配置从supervisor的配置文件里消失了。。。supervisor只会对组进行管理，而不再
+</span></span><span style=display:flex><span>                         会对组里面的单个program进行管理了
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>programs</span><span style=color:#ff7b72;font-weight:700>=</span>progname1,progname2  ; 组成员，用逗号分开
+</span></span><span style=display:flex><span>                                 这个是个必须的设置项
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>priority</span><span style=color:#ff7b72;font-weight:700>=</span><span style=color:#a5d6ff>999</span>                  ; 优先级，相对于组和组之间说的
+</span></span><span style=display:flex><span>                                 默认999。。非必须选项
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>; The <span style=color:#ff7b72;font-weight:700>[</span>include<span style=color:#ff7b72;font-weight:700>]</span> section can just contain the <span style=color:#a5d6ff>&#34;files&#34;</span> setting.  This
+</span></span><span style=display:flex><span>; setting can list multiple files <span style=color:#ff7b72;font-weight:700>(</span>separated by whitespace or
+</span></span><span style=display:flex><span>; newlines<span style=color:#ff7b72;font-weight:700>)</span>.  It can also contain wildcards.  The filenames are
+</span></span><span style=display:flex><span>; interpreted as relative to this file.  Included files *cannot*
+</span></span><span style=display:flex><span>; include files themselves.
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>;<span style=color:#ff7b72;font-weight:700>[</span>include<span style=color:#ff7b72;font-weight:700>]</span>                         ;这个东西挺有用的，当我们要管理的进程很多的时候，写在一个文件里面
+</span></span><span style=display:flex><span>                                    就有点大了。我们可以把配置信息写到多个文件中，然后include过来
+</span></span><span style=display:flex><span>;<span style=color:#79c0ff>files</span> <span style=color:#ff7b72;font-weight:700>=</span> relative/directory/*.ini
+</span></span></code></pre></td></tr></table></div></div></div><div class=post-archive><ul class=post-copyright><li><strong>原文作者：</strong><a rel=author href=https://blogs.xwnlearn.cn/>徐同学的博客</a></li><li style=word-break:break-all><strong>原文链接：</strong><a href=https://blogs.xwnlearn.cn/post/2022/supervisor/>https://blogs.xwnlearn.cn/post/2022/supervisor/</a></li><li><strong>版权声明：</strong>本作品采用<a rel=license href=https://creativecommons.org/licenses/by-nc-nd/4.0/>知识共享署名-非商业性使用-禁止演绎 4.0 国际许可协议</a>. 进行许可，非商业转载请注明出处（作者，原文链接），商业转载请联系作者获得授权。</li></ul></div><br><div class=post-archive><h2>相关文章</h2><ul class=listing><li><a href=/post/2021/frp%E5%86%85%E7%BD%91%E7%A9%BF%E9%80%8F/>frp内网穿透</a></li><li><a href=/post/2021/JumpServer/>JumpServer</a></li><li><a href=/post/2021/swap/>swap</a></li><li><a href=/post/2021/KickStart%E9%83%A8%E7%BD%B2%E6%89%B9%E9%87%8F%E5%AE%89%E8%A3%85%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/>KickStart部署批量安装操作系统</a></li><li><a href=/post/2021/sersync%E5%90%8C%E6%AD%A5%E8%AE%BE%E7%BD%AE/>sersync同步设置</a></li></ul></div><div class="post-meta meta-tags"><ul class=clearfix><li><a href=/tags/Linux target=_blank>Linux</a></li></ul></div></article><div id=disqus_thread></div><script>window.disqus_config=function(){},function(){if(["localhost","127.0.0.1"].indexOf(window.location.hostname)!=-1){document.getElementById("disqus_thread").innerHTML="Disqus comments not available by default when the website is previewed locally.";return}var t=document,e=t.createElement("script");e.async=!0,e.src="//yourdiscussshortname.disqus.com/embed.js",e.setAttribute("data-timestamp",+new Date),(t.head||t.body).appendChild(e)}()</script><noscript>Please enable JavaScript to view the <a href=https://disqus.com/?ref_noscript>comments powered by Disqus.</a></noscript><a href=https://disqus.com class=dsq-brlink>comments powered by <span class=logo-disqus>Disqus</span></a><div class="post bg-white"><script src=https://utteranc.es/client.js repo="your github repo" issue-term=pathname theme=github-light crossorigin=anonymous async></script></div></div><footer id=footer><div>&copy; 2025 <a href=https://blogs.xwnlearn.cn/>徐同学的博客 By 徐同学</a>
+| <a rel=nofollow target=_blank href=http://beian.miit.gov.cn/>皖ICP备2020020988号-1</a> | <a href=https://gohugo.io/ target=_black rel=nofollow><span class=badge-subject>Powered by</span><span class="badge-value bg-blue">Hugo</span></a> | <a href=https://github.com/flysnow-org/maupassant-hugo target=_black><span class=badge-subject>Theme</span><span class="badge-value bg-yellowgreen">Maupassant</span></a></div></footer><script type=text/javascript>window.MathJax={tex2jax:{inlineMath:[["$","$"]],processEscapes:!0}}</script><script src='//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script><script src=//cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js></script><a id=rocket href=#top></a><script type=text/javascript src='/js/totop.js?v=0.0.0' async></script><style type=text/css>div.highlight{position:relative;margin:1em 0}.copy-code{display:none;position:absolute;top:4px;right:4px;color:rgba(255,255,255,.8);background:rgba(78,78,78,.8);border-radius:var(--radius);padding:0 5px;font:inherit;user-select:none;cursor:pointer;border:0;--radius:8px}div.highlight:hover .copy-code,pre:hover .copy-code{display:block}</style><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode.parentNode,t=document.createElement("button");t.classList.add("copy-code"),t.innerHTML="copy";function s(){t.innerHTML="copied!",setTimeout(()=>{t.innerHTML="copy"},2e3)}t.addEventListener("click",t=>{if("clipboard"in navigator){navigator.clipboard.writeText(e.textContent),s();return}const n=document.createRange();n.selectNodeContents(e);const o=window.getSelection();o.removeAllRanges(),o.addRange(n);try{document.execCommand("copy"),s()}catch{}o.removeRange(n)}),n.classList.contains("highlight")?n.appendChild(t):n.parentNode.firstChild==n||(e.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName=="TABLE"?e.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(t):e.parentNode.appendChild(t))})</script><script src=/js/douban.js></script></div><div id=secondary><section class=widget><form id=search action=https://blogs.xwnlearn.cn/search method=get accept-charset=utf-8 target=_blank _lpchecked=1><input type=text name=q maxlength=20 placeholder=Search>
+<input type=hidden name=sitesearch value=https://blogs.xwnlearn.cn/>
+<button type=submit class="submit icon-search"></button></form></section><section class=widget><h3 class=widget-title>最近文章</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/post/2025/Jenkins-Pipeline-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%B9%B3%E5%8F%B0%E8%B4%A6%E5%8F%B7%E5%85%B3%E8%81%94%E4%B8%8E%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/ title="Jenkins Pipeline 进阶：多平台账号关联与自动化部署" target=_blank>Jenkins Pipeline 进阶：多平台账号关联与自动化部署</a></li><li><a href=https://blogs.xwnlearn.cn/post/2025/%E9%AB%98%E5%8F%AF%E7%94%A8harbor/ title=高可用harbor target=_blank>高可用harbor</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/%E5%BF%AB%E9%80%9F%E6%9E%84%E5%BB%BAZabbix7.0%E9%AB%98%E5%8F%AF%E7%94%A8%E7%9B%91%E6%8E%A7%E6%96%B9%E6%A1%88/ title=快速构建Zabbix7.0高可用监控方案 target=_blank>快速构建Zabbix7.0高可用监控方案</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/Microk8s%E9%83%A8%E7%BD%B2kubeflow/ title=Microk8s部署kubeflow target=_blank>Microk8s部署kubeflow</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/K8sGPT%E5%BA%94%E7%94%A8/ title=K8sGPT应用 target=_blank>K8sGPT应用</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/LocalAI-k8sgpt-operator/ title=LocalAI+k8sgpt-operator target=_blank>LocalAI+k8sgpt-operator</a></li><li><a href=https://blogs.xwnlearn.cn/post/2024/ApisixRoute%E9%85%8D%E7%BD%AE%E5%90%8E%E7%AB%AF%E8%B6%85%E6%97%B6%E6%97%B6%E9%97%B4/ title=ApisixRoute配置后端超时时间 target=_blank>ApisixRoute配置后端超时时间</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/apisix-ingress%E4%B8%8Eapisix%E7%9B%91%E6%8E%A7/ title=apisix-ingress与apisix监控 target=_blank>apisix-ingress与apisix监控</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Prometheus/ title=Prometheus target=_blank>Prometheus</a></li><li><a href=https://blogs.xwnlearn.cn/post/2023/Telegram-bot/ title=Telegram-bot target=_blank>Telegram-bot</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/categories/>分类</a></h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/categories/CI/CD/>CI/CD (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Go%E8%AF%AD%E8%A8%80/>Go语言 (2)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Kubernetes/>Kubernetes (17)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/Linux/>Linux (21)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件 (7)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库 (9)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理 (1)</a></li><li><a href=https://blogs.xwnlearn.cn/categories/%E7%9B%91%E6%8E%A7/>监控 (5)</a></li></ul></section><section class=widget><h3 class=widget-title><a href=/tags/>标签</a></h3><div class=tagcloud><a href=https://blogs.xwnlearn.cn/tags/Docker/>Docker</a>
+<a href=https://blogs.xwnlearn.cn/tags/Go%E8%AF%AD%E8%A8%80/>Go语言</a>
+<a href=https://blogs.xwnlearn.cn/tags/Jenkins/>Jenkins</a>
+<a href=https://blogs.xwnlearn.cn/tags/Kubernetes/>Kubernetes</a>
+<a href=https://blogs.xwnlearn.cn/tags/Linux/>Linux</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pipeline/>Pipeline</a>
+<a href=https://blogs.xwnlearn.cn/tags/Pod/>Pod</a>
+<a href=https://blogs.xwnlearn.cn/tags/Prometheus/>Prometheus</a>
+<a href=https://blogs.xwnlearn.cn/tags/Service/>Service</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSH/>SSH</a>
+<a href=https://blogs.xwnlearn.cn/tags/SSL/>SSL</a>
+<a href=https://blogs.xwnlearn.cn/tags/Zabbix/>Zabbix</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/>中间件</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E4%BA%91%E5%8E%9F%E7%94%9F/>云原生</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E5%AD%98%E5%82%A8/>存储</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/>数据库</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E6%97%A5%E5%BF%97%E7%AE%A1%E7%90%86/>日志管理</a>
+<a href=https://blogs.xwnlearn.cn/tags/%E7%9B%91%E6%8E%A7/>监控</a></div></section><section class=widget><h3 class=widget-title>友情链接</h3><ul class=widget-list><li><a target=_blank href=https://www.liwenzhou.com/ title=李文周的博客>李文周的博客</a></li></ul></section><section class=widget><h3 class=widget-title>其它</h3><ul class=widget-list><li><a href=https://blogs.xwnlearn.cn/index.xml>文章 RSS</a></li></ul></section></div></div></div></div></body></html>
