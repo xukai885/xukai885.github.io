@@ -42,347 +42,687 @@
 </span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>privileged</span>:<span style=color:#6e7681> </span><span style=color:#79c0ff>true</span><span style=color:#6e7681>
 </span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>user</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>root</span><span style=color:#6e7681>
 </span></span></span><span style=display:flex><span><span style=color:#6e7681>    </span><span style=color:#7ee787>restart</span>:<span style=color:#6e7681> </span><span style=color:#a5d6ff>always</span><span style=color:#6e7681>
-</span></span></span></code></pre></td></tr></table></div></div><h4 id=配置共享库>配置共享库</h4><p><code>系统管理</code> -><code>系统配置</code>-> <code>Global Trusted Pipeline Libraries</code></p><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/ae29ffba9732c5dd79ad6c107fd9d9d1.jpg><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/ae29ffba9732c5dd79ad6c107fd9d9d1.jpg></a></p><h3 id=jenkins-pipeline-ci>Jenkins Pipeline CI</h3><h4 id=ci代码>CI代码</h4><p>​ 下面是使用maven构建linux/win平台docker镜像的流程</p><pre tabindex=0><code>@Library(&#39;jenkins-shared-library@main&#39;) _
-// 引入 Jenkins 共享库，名称为 &#39;jenkins-shared-library&#39;，使用 &#39;main&#39; 分支。
-
-pipeline {
-    agent any
-    // 指定 Pipeline 在任何可用的 Jenkins Agent 上运行。
-
-    parameters {
-        string(name: &#39;BRANCH_NAME&#39;, defaultValue: &#39;master&#39;, description: &#39;Git分支名称&#39;)
-        // 定义一个字符串参数，用于指定 Git 分支名称，默认值为 &#39;master&#39;。
-
-        string(name: &#39;ZENTAO_REPOPATH&#39;, defaultValue: &#39;&#39;, description: &#39;gitlab 项目链接&#39;)
-        // 定义一个字符串参数，用于指定 GitLab 项目的 URL。
-
-        string(name: &#39;ZENTAO_ACCOUNT&#39;, defaultValue: &#39;&#39;, description: &#39;zentao 用户&#39;)
-        // 定义一个字符串参数，用于指定禅道（Zentao）的用户名。
-
-        choice(name: &#39;BUILD_PLATFORM&#39;, choices: [&#39;linux&#39;, &#39;windows&#39;], description: &#39;构建平台&#39;)
-        // 定义一个选择参数，用于指定构建平台，可选值为 &#39;linux&#39; 或 &#39;windows&#39;。
-    }
-
-    environment {
-        CURRENT_DATE = sh(script: &#34;date +&#39;%Y%m%d%H%M%S&#39;&#34;, returnStdout: true).trim()
-        // 定义一个环境变量 CURRENT_DATE，值为当前日期时间，格式为 &#39;YYYYMMDDHHMMSS&#39;。
-
-        BUILD_COMMIT = &#39;&#39;
-        // 定义一个环境变量 BUILD_COMMIT，初始值为空，后续会存储 Git 提交 ID。
-
-        ImageName = &#39;&#39;
-        // 定义一个环境变量 ImageName，初始值为空，后续会存储 Docker 镜像名称。
-
-        GITLAB_GROUP = &#39;&#39;
-        // 定义一个环境变量 GITLAB_GROUP，初始值为空，后续会存储 GitLab 项目组名称。
-
-        GITLAB_PROJECT = &#39;&#39;
-        // 定义一个环境变量 GITLAB_PROJECT，初始值为空，后续会存储 GitLab 项目名称。
-    }
-
-    stages {
-        stage(&#34;提取项目和项目名&#34;) {
-            steps {
-                script {
-                    def res = getGitLabGroupAndProject.extractGitLabInfo(params.ZENTAO_REPOPATH)
-                    // 调用共享库中的方法 extractGitLabInfo，从 GitLab 项目 URL 中提取项目组和项目名称。
-
-                    GITLAB_GROUP = res.group
-                    // 将提取到的 GitLab 项目组名称赋值给环境变量 GITLAB_GROUP。
-
-                    GITLAB_PROJECT = res.project
-                    // 将提取到的 GitLab 项目名称赋值给环境变量 GITLAB_PROJECT。
-                }
-            }
-        }
-
-        stage(&#34;构建邮件通知&#34;) {
-            steps {
-                script {
-                    // 触发构建消息。
-                }
-            }
-        }
-
-        stage(&#39;拉取代码并构建&#39;) {
-            agent {
-                docker {
-                    image &#34;${GlobalVars.MavenBuildImage}&#34;
-                    // 使用共享库中定义的 Maven 构建镜像。
-
-                    args &#39;-v /data/.m2:/root/.m2 -v /data/jar-package:/data/jar-package&#39;
-                    // 挂载宿主机的 Maven 缓存目录和构建产物目录到容器中。
-
-                    reuseNode true
-                    // 重用当前节点，避免切换到其他节点。
-                }
-            }
-            steps {
-                checkout scmGit(
-                    branches: [[name: &#34;*/${params.BRANCH_NAME}&#34;]],
-                    // 指定要拉取的分支名称，使用参数 BRANCH_NAME。
-
-                    extensions: [],
-                    // 无额外的 Git 扩展配置。
-
-                    userRemoteConfigs: [[
-                        credentialsId: &#34;${GlobalVars.GitLabcredentialsId}&#34;,
-                        // 使用共享库中定义的 GitLab 凭据 ID。
-
-                        url: &#34;https://${GlobalVars.GitlabUrl}/${GITLAB_GROUP}/${GITLAB_PROJECT}.git&#34;
-                        // 指定 GitLab 项目的 URL。
-                    ]]
-                )
-                script {
-                    sh &#39;mvn -B -DskipTests clean package&#39;
-                    // 使用 Maven 进行构建，跳过测试。
-
-                    sh &#34;cp ruoyi-admin/target/ruoyi-admin.jar /data/jar-package/${GITLAB_GROUP}-${GITLAB_PROJECT}-${CURRENT_DATE}.jar&#34;
-                    // 将构建产物（JAR 文件）复制到宿主机的指定目录，并重命名。
-                }
-            }
-        }
-
-        stage(&#39;保存构建产物&#39;) {
-            steps {
-                stash includes: &#39;ruoyi-admin/target/ruoyi-admin.jar&#39;, name: &#39;jar-package&#39;
-                // 将构建产物（JAR 文件）保存为 Jenkins 的 stash，供后续阶段使用。
-            }
-        }
-
-        stage(&#39;构建信息&#39;) {
-            steps {
-                script {
-                    wrap([$class: &#39;BuildUser&#39;]) {
-                        // 使用 Jenkins 的 BuildUser 插件获取构建用户信息。
-
-                        BUILD_USER = &#34;${ZENTAO_ACCOUNT}&#34;
-                        // 将禅道用户赋值给环境变量 BUILD_USER。
-
-                        BUILD_NAME = &#34;${GITLAB_GROUP}/${GITLAB_PROJECT}&#34;
-                        // 将项目组和项目名称拼接后赋值给环境变量 BUILD_NAME。
-
-                        BUILD_BRANCH = &#34;${BRANCH_NAME}&#34;
-                        // 将分支名称赋值给环境变量 BUILD_BRANCH。
-
-                        BUILD_COMMIT = &#34;${getCommitId()}&#34;
-                        // 调用共享库中的方法 getCommitId，获取当前 Git 提交 ID，并赋值给环境变量 BUILD_COMMIT。
-
-                        BUILD_PLATFORM = &#34;${params.BUILD_PLATFORM}&#34;
-                        // 将构建平台赋值给环境变量 BUILD_PLATFORM。
-                    }
-                    currentBuild.description = &#34;&#34;&#34;构建用户: ${BUILD_USER}\n构建项目: ${BUILD_NAME}\n构建分支: ${BUILD_BRANCH}\n构建平台: ${BUILD_PLATFORM}\nMessageID: ${BUILD_COMMIT}
-                    &#34;&#34;&#34;
-                    // 设置当前构建的描述信息，包含构建用户、项目、分支、平台和提交 ID。
-                }
-            }
-        }
-
-        stage(&#39;构建镜像名称&#39;) {
-            steps {
-                script {
-                    ImageName = &#34;${GlobalVars.HarborUrl}/${GITLAB_GROUP}/${GITLAB_PROJECT}:${CURRENT_DATE}-${BUILD_COMMIT}-${params.BUILD_PLATFORM}&#34;
-                    // 根据 Harbor 地址、项目组、项目名称、日期、提交 ID 和构建平台生成 Docker 镜像名称。
-                }
-            }
-        }
-
-        stage(&#39;打包镜像&#39;) {
-            steps {
-                script {
-                    if (params.BUILD_PLATFORM == &#39;linux&#39;) {
-                        buildDockerImage.LinuxRuoyiBuild(ImageName)
-                        // 如果构建平台是 Linux，调用共享库中的方法 LinuxRuoyiBuild 打包 Docker 镜像。
-                    } else if (params.BUILD_PLATFORM == &#39;windows&#39;) {
-                        node(&#39;win-agent&#39;) {
-                            unstash &#39;jar-package&#39;
-                            // 如果构建平台是 Windows，切换到 Windows 节点，并恢复之前保存的构建产物。
-
-                            buildDockerImage.WindowsRuoyiBuild(ImageName)
-                            // 调用共享库中的方法 WindowsRuoyiBuild 打包 Docker 镜像。
-                        }
-                    }
-                }
-            }
-        }
-
-        stage(&#39;推送镜像&#39;) {
-            steps {
-                script {
-                    if (params.BUILD_PLATFORM == &#39;linux&#39;) {
-                        withDockerRegistry(credentialsId: &#34;${GlobalVars.HarborcredentialsId}&#34;, url: &#34;https://${GlobalVars.HarborUrl}&#34;) {
-                            sh &#34;docker push ${ImageName}&#34;
-                            // 如果构建平台是 Linux，推送 Docker 镜像到 Harbor。
-
-                            sh &#34;docker rmi ${ImageName}&#34;
-                            // 删除本地 Docker 镜像以释放空间。
-                        }
-                    } else if (params.BUILD_PLATFORM == &#39;windows&#39;) {
-                        node(&#39;win-agent&#39;) {
-                            withDockerRegistry(credentialsId: &#34;${GlobalVars.HarborcredentialsId}&#34;, url: &#34;https://${GlobalVars.HarborUrl}&#34;) {
-                                bat &#34;docker push ${ImageName}&#34;
-                                // 如果构建平台是 Windows，推送 Docker 镜像到 Harbor。
-
-                                bat &#34;docker rmi ${ImageName}&#34;
-                                // 删除本地 Docker 镜像以释放空间。
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            cleanWs()
-            // 无论构建成功与否，始终清理工作空间。
-        }
-        success {
-            script {
-                // 构建成功时发送通知。
-            }
-        }
-        unsuccessful {
-            script {
-                // 构建失败时发送通知。
-            }
-        }
-    }
-}
-</code></pre><p>该 Jenkins Pipeline 脚本实现了一个完整的 CI 流程</p><ol><li><strong>参数化构建</strong>：支持动态指定 Git 分支、GitLab 项目、禅道用户和构建平台。</li><li><strong>代码拉取与构建</strong>：从 GitLab 拉取代码并使用 Maven 进行构建。</li><li><strong>镜像打包与推送</strong>：根据构建平台（Linux 或 Windows）打包 Docker 镜像并推送到 Harbor。</li><li><strong>构建信息记录</strong>：记录构建用户、项目、分支、平台和提交 ID 等信息。</li><li><strong>通知与清理</strong>：支持构建成功或失败时发送通知，并始终清理工作空间。</li></ol><p>通过共享库的使用，脚本的逻辑更加简洁和模块化，便于维护和扩展。</p><h4 id=创建构建流程>创建构建流程</h4><p>写好CI流程，下面在Jenkins添加构建流程</p><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/9ed970388aa04bdd1bef3d2b2aa3aadd.jpg><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/9ed970388aa04bdd1bef3d2b2aa3aadd.jpg></a></p><h4 id=基于禅道关联jenkins任务>基于禅道关联Jenkins任务</h4><p>禅道平台配置关联jenkins，方便用户调用触发</p><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/746b9addb459c43b62b428772f4d5655.png><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/746b9addb459c43b62b428772f4d5655.png></a></p><h3 id=jenkins-pipeline-cd>Jenkins Pipeline CD</h3><h4 id=cd-代码>CD 代码</h4><pre tabindex=0><code>@Library(&#39;jenkins-shared-library@main&#39;) _
-// 引入 Jenkins 共享库，名称为 &#39;jenkins-shared-library&#39;，使用 &#39;main&#39; 分支。
-
-pipeline {
-    agent any
-    // 指定 Pipeline 在任何可用的 Jenkins Agent 上运行。
-
-    parameters {
-        string(name: &#39;SSH_USER&#39;, defaultValue: &#39;root&#39;, description: &#39;SSH User&#39;)
-        // 定义一个字符串参数，用于指定 SSH 用户，默认值为 &#39;root&#39;。
-
-        string(name: &#39;TARGET_IP&#39;, defaultValue: &#39;&#39;, description: &#39;部署机器 IP 地址&#39;)
-        // 定义一个字符串参数，用于指定目标机器的 IP 地址。
-
-        string(name: &#39;DOCKER_IMAGE&#39;, defaultValue: &#39;&#39;, description: &#39;运行服务镜像地址&#39;)
-        // 定义一个字符串参数，用于指定 Docker 镜像的名称。
-
-        string(name: &#39;IMAGE_VERSION&#39;, defaultValue: &#39;&#39;, description: &#39;运行服务镜像版本号&#39;)
-        // 定义一个字符串参数，用于指定 Docker 镜像的版本号。
-
-        string(name: &#39;SERVICE_NAME&#39;, defaultValue: &#39;&#39;, description: &#39;容器运行名称&#39;)
-        // 定义一个字符串参数，用于指定 Docker 容器的名称。
-
-        string(name: &#39;PORT_MAPPING&#39;, defaultValue: &#39;&#39;, description: &#39;端口映射,eg: 8080:8080&#39;)
-        // 定义一个字符串参数，用于指定 Docker 容器的端口映射。
-
-        string(name: &#39;ENV_VARIABLES&#39;, defaultValue: &#39;&#39;, description: &#39;环境变量,eg: KEY=&#34;VALUE&#34;,KEY2=&#34;VALUE2&#34;&#39;)
-        // 定义一个字符串参数，用于指定 Docker 容器的环境变量。
-    }
-
-    environment {
-        SEND_BUILD_USER_EMAIL = &#39;&#39;
-        // 定义一个环境变量 SEND_BUILD_USER_EMAIL，初始值为空，后续会存储构建用户的邮箱。
-    }
-
-    stages {
-        stage(&#39;获取参数&#39;) {
-            steps {
-                script {
-                    withBuildUser {
-                        SEND_BUILD_USER_EMAIL = env.BUILD_USER_EMAIL
-                        // 使用 Jenkins 的 BuildUser 插件获取构建用户的邮箱，并赋值给环境变量 SEND_BUILD_USER_EMAIL。
-                    }
-
-                    // 检查参数是否为空
-                    if (!params.SSH_USER?.trim()) {
-                        error &#34;SSH 用户不能为空！&#34;
-                        // 如果 SSH 用户为空，抛出错误并终止 Pipeline。
-                    }
-                    if (!params.TARGET_IP?.trim()) {
-                        error &#34;目标机器 IP 地址不能为空！&#34;
-                        // 如果目标机器 IP 地址为空，抛出错误并终止 Pipeline。
-                    }
-                    if (!params.SERVICE_NAME?.trim()) {
-                        error &#34;服务名称不能为空！&#34;
-                        // 如果服务名称为空，抛出错误并终止 Pipeline。
-                    }
-                    if (!params.DOCKER_IMAGE?.trim()) {
-                        error &#34;Docker 镜像名称不能为空！&#34;
-                        // 如果 Docker 镜像名称为空，抛出错误并终止 Pipeline。
-                    }
-                    if (!params.IMAGE_VERSION?.trim()) {
-                        error &#34;Docker 镜像版本号不能为空！&#34;
-                        // 如果 Docker 镜像版本号为空，抛出错误并终止 Pipeline。
-                    }
-                    if (!params.PORT_MAPPING?.trim()) {
-                        error &#34;端口映射不能为空！&#34;
-                        // 如果端口映射为空，抛出错误并终止 Pipeline。
-                    }
-                }
-            }
-        }
-
-        stage(&#39;部署服务&#39;) {
-            steps {
-                script {
-                    def envVariables = &#34;&#34;
-                    if (params.ENV_VARIABLES?.trim()) {
-                        def envList = params.ENV_VARIABLES.split(&#39;,&#39;)
-                        envVariables = envList.collect { envVar -&gt;
-                            &#34;-e ${envVar.trim()}&#34;
-                        }.join(&#39; &#39;)
-                        // 如果环境变量参数不为空，将其拆分为多个环境变量，并格式化为 Docker 命令中的 `-e` 参数。
-                    }
-
-                    def dockerCommand = &#34;&#34;
-                    withCredentials([usernamePassword(credentialsId: &#39;devops_harbor&#39;, passwordVariable: &#39;HARBOR_PASSWORD&#39;, usernameVariable: &#39;HARBOR_USERNAME&#39;)]) {
-                        // 使用 Jenkins 的 Credentials 插件获取 Harbor 仓库的用户名和密码。
-
-                        dockerCommand = &#34;&#34;&#34;
-                            docker login harbor.wuyinit.com -u $HARBOR_USERNAME -p $HARBOR_PASSWORD &amp;&amp;
-                            docker pull ${params.DOCKER_IMAGE}:${params.IMAGE_VERSION} &amp;&amp;
-                            docker stop ${params.SERVICE_NAME} || true &amp;&amp;
-                            docker rm ${params.SERVICE_NAME} || true &amp;&amp;
-                            docker run -itd --name ${params.SERVICE_NAME} -p ${params.PORT_MAPPING} ${envVariables} ${params.DOCKER_IMAGE}:${params.IMAGE_VERSION}
-                        &#34;&#34;&#34;
-                        // 构建 Docker 命令，包括：
-                        // 1. 登录 Harbor 仓库。
-                        // 2. 拉取指定版本的 Docker 镜像。
-                        // 3. 停止并删除已存在的同名容器。
-                        // 4. 启动新的容器，并指定名称、端口映射和环境变量。
-                    }
-
-                    sshagent([&#39;deploy-agent-key&#39;]) {
-                        // 使用 Jenkins 的 SSH Agent 插件，加载指定的 SSH 私钥（&#39;deploy-agent-key&#39;）。
-
-                        sh &#34;&#34;&#34;
-                        ssh -o StrictHostKeyChecking=no ${params.SSH_USER}@${params.TARGET_IP} &lt;&lt; &#39;EOF&#39;
-                        ${dockerCommand}
-EOF
-                        &#34;&#34;&#34;
-                        // 通过 SSH 连接到目标机器，并执行 Docker 命令。
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            script {
-                // 构建成功时发送邮件通知。
-            }
-        }
-
-        unsuccessful {
-            script {
-                // 构建失败时发送邮件通知。
-            }
-        }
-    }
-}
-</code></pre><p>该 Jenkins Pipeline 脚本实现了一个完整的服务部署流程，包括：</p><ol><li><strong>参数化构建</strong>：支持动态指定 SSH 用户、目标机器 IP、Docker 镜像、版本号、服务名称、端口映射和环境变量。</li><li><strong>参数检查</strong>：确保所有必填参数不为空。</li><li><strong>服务部署</strong>：<ul><li>登录 Harbor 仓库并拉取 Docker 镜像。</li><li>停止并删除已存在的同名容器。</li><li>启动新的容器，并指定名称、端口映射和环境变量。</li></ul></li><li><strong>通知与清理</strong>：支持构建成功或失败时发送通知。</li></ol><p>通过共享库和 Jenkins 插件（如 Credentials、SSH Agent）的使用，脚本的逻辑更加简洁和模块化，便于维护和扩展。</p><h2 id=钉钉与openldap的联动>钉钉与OpenLDAP的联动</h2><p><a data-fancybox=gallery href=https://ldapdoc.eryajf.net/img/architecture.png><img class=mx-auto alt src=https://ldapdoc.eryajf.net/img/architecture.png></a></p><p>​ 为了实现统一身份认证，并基于现有的钉钉组织和人员信息，将Jenkins、GitLab、Harbor 和禅道等多平台的账号关联，我们可以使用 OpenLDAP 作为统一的用户认证中心。具体步骤如下：</p><ol><li>**配置 Go-Ldap-Admin 等服务：**将钉钉通讯录中的用户和组织结构同步到 OpenLDAP 服务器。</li><li><strong>配置各平台使用 OpenLDAP 认证：</strong> 在 Jenkins、GitLab、Harbor 和禅道的系统设置中，配置 LDAP 认证，并指定 OpenLDAP 服务器的地址、端口、Base DN 等信息。</li></ol><p>docker-compose参考，<a href=https://github.com/opsre/go-ldap-admin/blob/main/docs/docker-compose/docker-compose.yaml>详情查看</a></p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span></span></span></code></pre></td></tr></table></div></div><h4 id=配置共享库>配置共享库</h4><p><code>系统管理</code> -><code>系统配置</code>-> <code>Global Trusted Pipeline Libraries</code></p><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/ae29ffba9732c5dd79ad6c107fd9d9d1.jpg><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/ae29ffba9732c5dd79ad6c107fd9d9d1.jpg></a></p><h3 id=jenkins-pipeline-ci>Jenkins Pipeline CI</h3><h4 id=ci代码>CI代码</h4><p>​ 下面是使用maven构建linux/win平台docker镜像的流程</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 71
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 72
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 73
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 74
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 75
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 76
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 77
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 78
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 79
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 80
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 81
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 82
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 83
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 84
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 85
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 86
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 87
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 88
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 89
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 90
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 91
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 92
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 93
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 94
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 95
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 96
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 97
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 98
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 99
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">100
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">101
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">102
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">103
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">104
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">105
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">106
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">107
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">108
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">109
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">110
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">111
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">112
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">113
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">114
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">115
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">116
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">117
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">118
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">119
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">120
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">121
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">122
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">123
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">124
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">125
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">126
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">127
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">128
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">129
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">130
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">131
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">132
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">133
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">134
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">135
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">136
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">137
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">138
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">139
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">140
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">141
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">142
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">143
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">144
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">145
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">146
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">147
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">148
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">149
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">150
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">151
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">152
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">153
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">154
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">155
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">156
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">157
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">158
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">159
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">160
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">161
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">162
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">163
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">164
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">165
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">166
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">167
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">168
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">169
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">170
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">171
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">172
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">173
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">174
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">175
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">176
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">177
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">178
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">179
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">180
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">181
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">182
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">183
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">184
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">185
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">186
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">187
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">188
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">189
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">190
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">191
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">192
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">193
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">194
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">195
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">196
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">197
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">198
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">199
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">200
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">201
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">202
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">203
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">204
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">205
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">206
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">207
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">208
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-groovy data-lang=groovy><span style=display:flex><span><span style=color:#d2a8ff;font-weight:700>@Library</span><span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;jenkins-shared-library@main&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> _
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>// 引入 Jenkins 共享库，名称为 &#39;jenkins-shared-library&#39;，使用 &#39;main&#39; 分支。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>pipeline <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>    agent any
+</span></span><span style=display:flex><span>    <span style=color:#8b949e;font-style:italic>// 指定 Pipeline 在任何可用的 Jenkins Agent 上运行。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>    parameters <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;BRANCH_NAME&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;master&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;Git分支名称&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定 Git 分支名称，默认值为 &#39;master&#39;。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;ZENTAO_REPOPATH&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;gitlab 项目链接&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定 GitLab 项目的 URL。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;ZENTAO_ACCOUNT&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;zentao 用户&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定禅道（Zentao）的用户名。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        choice<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;BUILD_PLATFORM&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>choices:</span> <span style=color:#ff7b72;font-weight:700>[</span><span style=color:#a5d6ff>&#39;linux&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#a5d6ff>&#39;windows&#39;</span><span style=color:#ff7b72;font-weight:700>],</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;构建平台&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个选择参数，用于指定构建平台，可选值为 &#39;linux&#39; 或 &#39;windows&#39;。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    environment <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        CURRENT_DATE <span style=color:#ff7b72;font-weight:700>=</span> sh<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>script:</span> <span style=color:#a5d6ff>&#34;date +&#39;%Y%m%d%H%M%S&#39;&#34;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>returnStdout:</span> <span style=color:#79c0ff>true</span><span style=color:#ff7b72;font-weight:700>).</span>trim<span style=color:#ff7b72;font-weight:700>()</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个环境变量 CURRENT_DATE，值为当前日期时间，格式为 &#39;YYYYMMDDHHMMSS&#39;。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        BUILD_COMMIT <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个环境变量 BUILD_COMMIT，初始值为空，后续会存储 Git 提交 ID。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        ImageName <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个环境变量 ImageName，初始值为空，后续会存储 Docker 镜像名称。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        GITLAB_GROUP <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个环境变量 GITLAB_GROUP，初始值为空，后续会存储 GitLab 项目组名称。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        GITLAB_PROJECT <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个环境变量 GITLAB_PROJECT，初始值为空，后续会存储 GitLab 项目名称。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    stages <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#34;提取项目和项目名&#34;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>def</span> res <span style=color:#ff7b72;font-weight:700>=</span> getGitLabGroupAndProject<span style=color:#ff7b72;font-weight:700>.</span>extractGitLabInfo<span style=color:#ff7b72;font-weight:700>(</span>params<span style=color:#ff7b72;font-weight:700>.</span>ZENTAO_REPOPATH<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 调用共享库中的方法 extractGitLabInfo，从 GitLab 项目 URL 中提取项目组和项目名称。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                    GITLAB_GROUP <span style=color:#ff7b72;font-weight:700>=</span> res<span style=color:#ff7b72;font-weight:700>.</span>group
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 将提取到的 GitLab 项目组名称赋值给环境变量 GITLAB_GROUP。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                    GITLAB_PROJECT <span style=color:#ff7b72;font-weight:700>=</span> res<span style=color:#ff7b72;font-weight:700>.</span>project
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 将提取到的 GitLab 项目名称赋值给环境变量 GITLAB_PROJECT。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#34;构建邮件通知&#34;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 触发构建消息。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;拉取代码并构建&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            agent <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                docker <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    image <span style=color:#a5d6ff>&#34;${GlobalVars.MavenBuildImage}&#34;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 使用共享库中定义的 Maven 构建镜像。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                    args <span style=color:#a5d6ff>&#39;-v /data/.m2:/root/.m2 -v /data/jar-package:/data/jar-package&#39;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 挂载宿主机的 Maven 缓存目录和构建产物目录到容器中。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                    reuseNode <span style=color:#79c0ff>true</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 重用当前节点，避免切换到其他节点。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                checkout <span style=color:#d2a8ff;font-weight:700>scmGit</span><span style=color:#ff7b72;font-weight:700>(</span>
+</span></span><span style=display:flex><span>                    <span style=color:#79c0ff;font-weight:700>branches:</span> <span style=color:#ff7b72;font-weight:700>[[</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#34;*/${params.BRANCH_NAME}&#34;</span><span style=color:#ff7b72;font-weight:700>]],</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 指定要拉取的分支名称，使用参数 BRANCH_NAME。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                    <span style=color:#79c0ff;font-weight:700>extensions:</span> <span style=color:#ff7b72;font-weight:700>[],</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 无额外的 Git 扩展配置。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                    <span style=color:#79c0ff;font-weight:700>userRemoteConfigs:</span> <span style=color:#ff7b72;font-weight:700>[[</span>
+</span></span><span style=display:flex><span>                        <span style=color:#79c0ff;font-weight:700>credentialsId:</span> <span style=color:#a5d6ff>&#34;${GlobalVars.GitLabcredentialsId}&#34;</span><span style=color:#ff7b72;font-weight:700>,</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 使用共享库中定义的 GitLab 凭据 ID。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                        <span style=color:#79c0ff;font-weight:700>url:</span> <span style=color:#a5d6ff>&#34;https://${GlobalVars.GitlabUrl}/${GITLAB_GROUP}/${GITLAB_PROJECT}.git&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 指定 GitLab 项目的 URL。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>]]</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>                script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    sh <span style=color:#a5d6ff>&#39;mvn -B -DskipTests clean package&#39;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 使用 Maven 进行构建，跳过测试。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                    sh <span style=color:#a5d6ff>&#34;cp ruoyi-admin/target/ruoyi-admin.jar /data/jar-package/${GITLAB_GROUP}-${GITLAB_PROJECT}-${CURRENT_DATE}.jar&#34;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 将构建产物（JAR 文件）复制到宿主机的指定目录，并重命名。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;保存构建产物&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                stash <span style=color:#79c0ff;font-weight:700>includes:</span> <span style=color:#a5d6ff>&#39;ruoyi-admin/target/ruoyi-admin.jar&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;jar-package&#39;</span>
+</span></span><span style=display:flex><span>                <span style=color:#8b949e;font-style:italic>// 将构建产物（JAR 文件）保存为 Jenkins 的 stash，供后续阶段使用。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;构建信息&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    wrap<span style=color:#ff7b72;font-weight:700>([</span>$class<span style=color:#ff7b72;font-weight:700>:</span> <span style=color:#a5d6ff>&#39;BuildUser&#39;</span><span style=color:#ff7b72;font-weight:700>])</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 使用 Jenkins 的 BuildUser 插件获取构建用户信息。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                        BUILD_USER <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;${ZENTAO_ACCOUNT}&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 将禅道用户赋值给环境变量 BUILD_USER。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                        BUILD_NAME <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;${GITLAB_GROUP}/${GITLAB_PROJECT}&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 将项目组和项目名称拼接后赋值给环境变量 BUILD_NAME。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                        BUILD_BRANCH <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;${BRANCH_NAME}&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 将分支名称赋值给环境变量 BUILD_BRANCH。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                        BUILD_COMMIT <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;${getCommitId()}&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 调用共享库中的方法 getCommitId，获取当前 Git 提交 ID，并赋值给环境变量 BUILD_COMMIT。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                        BUILD_PLATFORM <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;${params.BUILD_PLATFORM}&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 将构建平台赋值给环境变量 BUILD_PLATFORM。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                    currentBuild<span style=color:#ff7b72;font-weight:700>.</span>description <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;&#34;&#34;构建用户: ${BUILD_USER}\n构建项目: ${BUILD_NAME}\n构建分支: ${BUILD_BRANCH}\n构建平台: ${BUILD_PLATFORM}\nMessageID: ${BUILD_COMMIT}
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                    &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 设置当前构建的描述信息，包含构建用户、项目、分支、平台和提交 ID。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;构建镜像名称&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    ImageName <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;${GlobalVars.HarborUrl}/${GITLAB_GROUP}/${GITLAB_PROJECT}:${CURRENT_DATE}-${BUILD_COMMIT}-${params.BUILD_PLATFORM}&#34;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 根据 Harbor 地址、项目组、项目名称、日期、提交 ID 和构建平台生成 Docker 镜像名称。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;打包镜像&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(</span>params<span style=color:#ff7b72;font-weight:700>.</span>BUILD_PLATFORM <span style=color:#ff7b72;font-weight:700>==</span> <span style=color:#a5d6ff>&#39;linux&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        buildDockerImage<span style=color:#ff7b72;font-weight:700>.</span>LinuxRuoyiBuild<span style=color:#ff7b72;font-weight:700>(</span>ImageName<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 如果构建平台是 Linux，调用共享库中的方法 LinuxRuoyiBuild 打包 Docker 镜像。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span> <span style=color:#ff7b72>else</span> <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(</span>params<span style=color:#ff7b72;font-weight:700>.</span>BUILD_PLATFORM <span style=color:#ff7b72;font-weight:700>==</span> <span style=color:#a5d6ff>&#39;windows&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        node<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;win-agent&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                            unstash <span style=color:#a5d6ff>&#39;jar-package&#39;</span>
+</span></span><span style=display:flex><span>                            <span style=color:#8b949e;font-style:italic>// 如果构建平台是 Windows，切换到 Windows 节点，并恢复之前保存的构建产物。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                            buildDockerImage<span style=color:#ff7b72;font-weight:700>.</span>WindowsRuoyiBuild<span style=color:#ff7b72;font-weight:700>(</span>ImageName<span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>                            <span style=color:#8b949e;font-style:italic>// 调用共享库中的方法 WindowsRuoyiBuild 打包 Docker 镜像。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;推送镜像&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(</span>params<span style=color:#ff7b72;font-weight:700>.</span>BUILD_PLATFORM <span style=color:#ff7b72;font-weight:700>==</span> <span style=color:#a5d6ff>&#39;linux&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        withDockerRegistry<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>credentialsId:</span> <span style=color:#a5d6ff>&#34;${GlobalVars.HarborcredentialsId}&#34;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>url:</span> <span style=color:#a5d6ff>&#34;https://${GlobalVars.HarborUrl}&#34;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                            sh <span style=color:#a5d6ff>&#34;docker push ${ImageName}&#34;</span>
+</span></span><span style=display:flex><span>                            <span style=color:#8b949e;font-style:italic>// 如果构建平台是 Linux，推送 Docker 镜像到 Harbor。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                            sh <span style=color:#a5d6ff>&#34;docker rmi ${ImageName}&#34;</span>
+</span></span><span style=display:flex><span>                            <span style=color:#8b949e;font-style:italic>// 删除本地 Docker 镜像以释放空间。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72;font-weight:700>}</span> <span style=color:#ff7b72>else</span> <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(</span>params<span style=color:#ff7b72;font-weight:700>.</span>BUILD_PLATFORM <span style=color:#ff7b72;font-weight:700>==</span> <span style=color:#a5d6ff>&#39;windows&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        node<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;win-agent&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                            withDockerRegistry<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>credentialsId:</span> <span style=color:#a5d6ff>&#34;${GlobalVars.HarborcredentialsId}&#34;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>url:</span> <span style=color:#a5d6ff>&#34;https://${GlobalVars.HarborUrl}&#34;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                                bat <span style=color:#a5d6ff>&#34;docker push ${ImageName}&#34;</span>
+</span></span><span style=display:flex><span>                                <span style=color:#8b949e;font-style:italic>// 如果构建平台是 Windows，推送 Docker 镜像到 Harbor。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                                bat <span style=color:#a5d6ff>&#34;docker rmi ${ImageName}&#34;</span>
+</span></span><span style=display:flex><span>                                <span style=color:#8b949e;font-style:italic>// 删除本地 Docker 镜像以释放空间。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    post <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        always <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            cleanWs<span style=color:#ff7b72;font-weight:700>()</span>
+</span></span><span style=display:flex><span>            <span style=color:#8b949e;font-style:italic>// 无论构建成功与否，始终清理工作空间。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        success <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                <span style=color:#8b949e;font-style:italic>// 构建成功时发送通知。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        unsuccessful <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                <span style=color:#8b949e;font-style:italic>// 构建失败时发送通知。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>该 Jenkins Pipeline 脚本实现了一个完整的 CI 流程</p><ol><li><strong>参数化构建</strong>：支持动态指定 Git 分支、GitLab 项目、禅道用户和构建平台。</li><li><strong>代码拉取与构建</strong>：从 GitLab 拉取代码并使用 Maven 进行构建。</li><li><strong>镜像打包与推送</strong>：根据构建平台（Linux 或 Windows）打包 Docker 镜像并推送到 Harbor。</li><li><strong>构建信息记录</strong>：记录构建用户、项目、分支、平台和提交 ID 等信息。</li><li><strong>通知与清理</strong>：支持构建成功或失败时发送通知，并始终清理工作空间。</li></ol><p>通过共享库的使用，脚本的逻辑更加简洁和模块化，便于维护和扩展。</p><h4 id=创建构建流程>创建构建流程</h4><p>写好CI流程，下面在Jenkins添加构建流程</p><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/9ed970388aa04bdd1bef3d2b2aa3aadd.jpg><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/9ed970388aa04bdd1bef3d2b2aa3aadd.jpg></a></p><h4 id=基于禅道关联jenkins任务>基于禅道关联Jenkins任务</h4><p>禅道平台配置关联jenkins，方便用户调用触发</p><p><a data-fancybox=gallery href=https://blog.xwnlearn.cn/api/v1/look_images/746b9addb459c43b62b428772f4d5655.png><img class=mx-auto alt src=https://blog.xwnlearn.cn/api/v1/look_images/746b9addb459c43b62b428772f4d5655.png></a></p><h3 id=jenkins-pipeline-cd>Jenkins Pipeline CD</h3><h4 id=cd-代码>CD 代码</h4><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">  9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 71
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 72
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 73
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 74
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 75
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 76
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 77
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 78
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 79
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 80
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 81
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 82
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 83
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 84
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 85
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 86
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 87
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 88
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 89
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 90
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 91
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 92
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 93
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 94
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 95
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 96
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 97
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 98
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 99
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">100
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">101
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">102
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">103
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">104
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">105
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">106
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">107
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">108
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">109
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">110
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">111
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">112
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">113
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">114
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">115
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">116
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">117
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">118
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">119
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">120
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">121
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">122
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">123
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">124
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">125
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">126
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">127
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">128
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">129
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">130
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">131
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">132
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-groovy data-lang=groovy><span style=display:flex><span><span style=color:#d2a8ff;font-weight:700>@Library</span><span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;jenkins-shared-library@main&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> _
+</span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic>// 引入 Jenkins 共享库，名称为 &#39;jenkins-shared-library&#39;，使用 &#39;main&#39; 分支。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>pipeline <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>    agent any
+</span></span><span style=display:flex><span>    <span style=color:#8b949e;font-style:italic>// 指定 Pipeline 在任何可用的 Jenkins Agent 上运行。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>    parameters <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;SSH_USER&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;root&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;SSH User&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定 SSH 用户，默认值为 &#39;root&#39;。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;TARGET_IP&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;部署机器 IP 地址&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定目标机器的 IP 地址。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;DOCKER_IMAGE&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;运行服务镜像地址&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定 Docker 镜像的名称。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;IMAGE_VERSION&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;运行服务镜像版本号&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定 Docker 镜像的版本号。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;SERVICE_NAME&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;容器运行名称&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定 Docker 容器的名称。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;PORT_MAPPING&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;端口映射,eg: 8080:8080&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定 Docker 容器的端口映射。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>        string<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>name:</span> <span style=color:#a5d6ff>&#39;ENV_VARIABLES&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>defaultValue:</span> <span style=color:#a5d6ff>&#39;&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>description:</span> <span style=color:#a5d6ff>&#39;环境变量,eg: KEY=&#34;VALUE&#34;,KEY2=&#34;VALUE2&#34;&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个字符串参数，用于指定 Docker 容器的环境变量。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    environment <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        SEND_BUILD_USER_EMAIL <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#39;&#39;</span>
+</span></span><span style=display:flex><span>        <span style=color:#8b949e;font-style:italic>// 定义一个环境变量 SEND_BUILD_USER_EMAIL，初始值为空，后续会存储构建用户的邮箱。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    stages <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;获取参数&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    withBuildUser <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        SEND_BUILD_USER_EMAIL <span style=color:#ff7b72;font-weight:700>=</span> env<span style=color:#ff7b72;font-weight:700>.</span>BUILD_USER_EMAIL
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 使用 Jenkins 的 BuildUser 插件获取构建用户的邮箱，并赋值给环境变量 SEND_BUILD_USER_EMAIL。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                    <span style=color:#8b949e;font-style:italic>// 检查参数是否为空
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(!</span>params<span style=color:#ff7b72;font-weight:700>.</span>SSH_USER<span style=color:#ff7b72;font-weight:700>?.</span>trim<span style=color:#ff7b72;font-weight:700>())</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        error <span style=color:#a5d6ff>&#34;SSH 用户不能为空！&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 如果 SSH 用户为空，抛出错误并终止 Pipeline。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(!</span>params<span style=color:#ff7b72;font-weight:700>.</span>TARGET_IP<span style=color:#ff7b72;font-weight:700>?.</span>trim<span style=color:#ff7b72;font-weight:700>())</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        error <span style=color:#a5d6ff>&#34;目标机器 IP 地址不能为空！&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 如果目标机器 IP 地址为空，抛出错误并终止 Pipeline。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(!</span>params<span style=color:#ff7b72;font-weight:700>.</span>SERVICE_NAME<span style=color:#ff7b72;font-weight:700>?.</span>trim<span style=color:#ff7b72;font-weight:700>())</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        error <span style=color:#a5d6ff>&#34;服务名称不能为空！&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 如果服务名称为空，抛出错误并终止 Pipeline。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(!</span>params<span style=color:#ff7b72;font-weight:700>.</span>DOCKER_IMAGE<span style=color:#ff7b72;font-weight:700>?.</span>trim<span style=color:#ff7b72;font-weight:700>())</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        error <span style=color:#a5d6ff>&#34;Docker 镜像名称不能为空！&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 如果 Docker 镜像名称为空，抛出错误并终止 Pipeline。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(!</span>params<span style=color:#ff7b72;font-weight:700>.</span>IMAGE_VERSION<span style=color:#ff7b72;font-weight:700>?.</span>trim<span style=color:#ff7b72;font-weight:700>())</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        error <span style=color:#a5d6ff>&#34;Docker 镜像版本号不能为空！&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 如果 Docker 镜像版本号为空，抛出错误并终止 Pipeline。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(!</span>params<span style=color:#ff7b72;font-weight:700>.</span>PORT_MAPPING<span style=color:#ff7b72;font-weight:700>?.</span>trim<span style=color:#ff7b72;font-weight:700>())</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        error <span style=color:#a5d6ff>&#34;端口映射不能为空！&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 如果端口映射为空，抛出错误并终止 Pipeline。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        stage<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;部署服务&#39;</span><span style=color:#ff7b72;font-weight:700>)</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            steps <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>def</span> envVariables <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;&#34;</span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>if</span> <span style=color:#ff7b72;font-weight:700>(</span>params<span style=color:#ff7b72;font-weight:700>.</span>ENV_VARIABLES<span style=color:#ff7b72;font-weight:700>?.</span>trim<span style=color:#ff7b72;font-weight:700>())</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        <span style=color:#ff7b72>def</span> envList <span style=color:#ff7b72;font-weight:700>=</span> params<span style=color:#ff7b72;font-weight:700>.</span>ENV_VARIABLES<span style=color:#ff7b72;font-weight:700>.</span>split<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39;,&#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>                        envVariables <span style=color:#ff7b72;font-weight:700>=</span> envList<span style=color:#ff7b72;font-weight:700>.</span>collect <span style=color:#ff7b72;font-weight:700>{</span> envVar <span style=color:#ff7b72;font-weight:700>-&gt;</span>
+</span></span><span style=display:flex><span>                            <span style=color:#a5d6ff>&#34;-e ${envVar.trim()}&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#ff7b72;font-weight:700>}.</span>join<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#a5d6ff>&#39; &#39;</span><span style=color:#ff7b72;font-weight:700>)</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 如果环境变量参数不为空，将其拆分为多个环境变量，并格式化为 Docker 命令中的 `-e` 参数。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                    <span style=color:#ff7b72>def</span> dockerCommand <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;&#34;</span>
+</span></span><span style=display:flex><span>                    withCredentials<span style=color:#ff7b72;font-weight:700>([</span>usernamePassword<span style=color:#ff7b72;font-weight:700>(</span><span style=color:#79c0ff;font-weight:700>credentialsId:</span> <span style=color:#a5d6ff>&#39;devops_harbor&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>passwordVariable:</span> <span style=color:#a5d6ff>&#39;HARBOR_PASSWORD&#39;</span><span style=color:#ff7b72;font-weight:700>,</span> <span style=color:#79c0ff;font-weight:700>usernameVariable:</span> <span style=color:#a5d6ff>&#39;HARBOR_USERNAME&#39;</span><span style=color:#ff7b72;font-weight:700>)])</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 使用 Jenkins 的 Credentials 插件获取 Harbor 仓库的用户名和密码。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                        dockerCommand <span style=color:#ff7b72;font-weight:700>=</span> <span style=color:#a5d6ff>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                            docker login harbor.wuyinit.com -u $HARBOR_USERNAME -p $HARBOR_PASSWORD &amp;&amp;
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                            docker pull ${params.DOCKER_IMAGE}:${params.IMAGE_VERSION} &amp;&amp;
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                            docker stop ${params.SERVICE_NAME} || true &amp;&amp;
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                            docker rm ${params.SERVICE_NAME} || true &amp;&amp;
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                            docker run -itd --name ${params.SERVICE_NAME} -p ${params.PORT_MAPPING} ${envVariables} ${params.DOCKER_IMAGE}:${params.IMAGE_VERSION}
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                        &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 构建 Docker 命令，包括：
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                        <span style=color:#8b949e;font-style:italic>// 1. 登录 Harbor 仓库。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                        <span style=color:#8b949e;font-style:italic>// 2. 拉取指定版本的 Docker 镜像。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                        <span style=color:#8b949e;font-style:italic>// 3. 停止并删除已存在的同名容器。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                        <span style=color:#8b949e;font-style:italic>// 4. 启动新的容器，并指定名称、端口映射和环境变量。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>                    sshagent<span style=color:#ff7b72;font-weight:700>([</span><span style=color:#a5d6ff>&#39;deploy-agent-key&#39;</span><span style=color:#ff7b72;font-weight:700>])</span> <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 使用 Jenkins 的 SSH Agent 插件，加载指定的 SSH 私钥（&#39;deploy-agent-key&#39;）。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>
+</span></span><span style=display:flex><span>                        sh <span style=color:#a5d6ff>&#34;&#34;&#34;
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                        ssh -o StrictHostKeyChecking=no ${params.SSH_USER}@${params.TARGET_IP} &lt;&lt; &#39;EOF&#39;
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                        ${dockerCommand}
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>EOF
+</span></span></span><span style=display:flex><span><span style=color:#a5d6ff>                        &#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>                        <span style=color:#8b949e;font-style:italic>// 通过 SSH 连接到目标机器，并执行 Docker 命令。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>                    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>                <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    post <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        success <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                <span style=color:#8b949e;font-style:italic>// 构建成功时发送邮件通知。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        unsuccessful <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>            script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>                <span style=color:#8b949e;font-style:italic>// 构建失败时发送邮件通知。
+</span></span></span><span style=display:flex><span><span style=color:#8b949e;font-style:italic></span>            <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>        <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>该 Jenkins Pipeline 脚本实现了一个完整的服务部署流程，包括：</p><ol><li><strong>参数化构建</strong>：支持动态指定 SSH 用户、目标机器 IP、Docker 镜像、版本号、服务名称、端口映射和环境变量。</li><li><strong>参数检查</strong>：确保所有必填参数不为空。</li><li><strong>服务部署</strong>：<ul><li>登录 Harbor 仓库并拉取 Docker 镜像。</li><li>停止并删除已存在的同名容器。</li><li>启动新的容器，并指定名称、端口映射和环境变量。</li></ul></li><li><strong>通知与清理</strong>：支持构建成功或失败时发送通知。</li></ol><p>通过共享库和 Jenkins 插件（如 Credentials、SSH Agent）的使用，脚本的逻辑更加简洁和模块化，便于维护和扩展。</p><h2 id=钉钉与openldap的联动>钉钉与OpenLDAP的联动</h2><p><a data-fancybox=gallery href=https://ldapdoc.eryajf.net/img/architecture.png><img class=mx-auto alt src=https://ldapdoc.eryajf.net/img/architecture.png></a></p><p>​ 为了实现统一身份认证，并基于现有的钉钉组织和人员信息，将Jenkins、GitLab、Harbor 和禅道等多平台的账号关联，我们可以使用 OpenLDAP 作为统一的用户认证中心。具体步骤如下：</p><ol><li>**配置 Go-Ldap-Admin 等服务：**将钉钉通讯录中的用户和组织结构同步到 OpenLDAP 服务器。</li><li><strong>配置各平台使用 OpenLDAP 认证：</strong> 在 Jenkins、GitLab、Harbor 和禅道的系统设置中，配置 LDAP 认证，并指定 OpenLDAP 服务器的地址、端口、Base DN 等信息。</li></ol><p>docker-compose参考，<a href=https://github.com/opsre/go-ldap-admin/blob/main/docs/docker-compose/docker-compose.yaml>详情查看</a></p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4

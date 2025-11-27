@@ -90,10 +90,13 @@
 </span></span></span><span style=display:flex><span><span style=color:#a5d6ff>DefaultLimitNOFILE=655360
 </span></span></span><span style=display:flex><span><span style=color:#a5d6ff>DefaultLimitNPROC=655360
 </span></span></span><span style=display:flex><span><span style=color:#a5d6ff>EOF</span>
-</span></span></code></pre></td></tr></table></div></div><h3 id=磁盘格式化>磁盘格式化</h3><p>分别在机器操作，格式化磁盘，配置开机挂载</p><pre tabindex=0><code># /etc/fstab
-
-UUID=570e9188-6483-4292-80ea-62a9c7ab543e /brick1         ext4    defaults        1       2
-</code></pre><h3 id=glusterfs>glusterfs</h3><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span></span></code></pre></td></tr></table></div></div><h3 id=磁盘格式化>磁盘格式化</h3><p>分别在机器操作，格式化磁盘，配置开机挂载</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#8b949e;font-style:italic># /etc/fstab</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#79c0ff>UUID</span><span style=color:#ff7b72;font-weight:700>=</span>570e9188-6483-4292-80ea-62a9c7ab543e /brick1         ext4    defaults        <span style=color:#a5d6ff>1</span>       <span style=color:#a5d6ff>2</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=glusterfs>glusterfs</h3><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
@@ -141,11 +144,15 @@ UUID=570e9188-6483-4292-80ea-62a9c7ab543e /brick1         ext4    defaults      
 </span></span><span style=display:flex><span>State: Peer in Cluster <span style=color:#ff7b72;font-weight:700>(</span>Connected<span style=color:#ff7b72;font-weight:700>)</span>
 </span></span></code></pre></td></tr></table></div></div><h4 id=设置卷>设置卷</h4><p>分别在机器创建目录</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
 </span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mkdir /brick1/gv0
-</span></span></code></pre></td></tr></table></div></div><p>在任意机器创建</p><pre tabindex=0><code>gluster volume create gv0 replica 3 arbiter 1 \
-    gluster-node1:/brick1/gv0 \
-    gluster-node2:/brick1/gv0 \
-    gluster-node3:/brick1/gv0
-</code></pre><p>启动存储卷</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span></span></code></pre></td></tr></table></div></div><p>在任意机器创建</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">4
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>gluster volume create gv0 replica <span style=color:#a5d6ff>3</span> arbiter <span style=color:#a5d6ff>1</span> <span style=color:#79c0ff>\
+</span></span></span><span style=display:flex><span><span style=color:#79c0ff></span>    gluster-node1:/brick1/gv0 <span style=color:#79c0ff>\
+</span></span></span><span style=display:flex><span><span style=color:#79c0ff></span>    gluster-node2:/brick1/gv0 <span style=color:#79c0ff>\
+</span></span></span><span style=display:flex><span><span style=color:#79c0ff></span>    gluster-node3:/brick1/gv0
+</span></span></code></pre></td></tr></table></div></div><p>启动存储卷</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
 </span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>gluster volume start gv0
 </span></span></code></pre></td></tr></table></div></div><p>查看卷状态</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
@@ -187,11 +194,15 @@ UUID=570e9188-6483-4292-80ea-62a9c7ab543e /brick1         ext4    defaults      
 </span></span><span style=display:flex><span>performance.client-io-threads: off
 </span></span></code></pre></td></tr></table></div></div><h4 id=挂载使用>挂载使用</h4><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
 </span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>mount -t glusterfs gluster-work:/gv0 /data
-</span></span></code></pre></td></tr></table></div></div><h3 id=harbor>harbor</h3><h4 id=安装包和配置>安装包和配置</h4><p>离线安装包 2.11.2 <a href=https://github.com/goharbor/harbor/releases/download/v2.11.2/harbor-online-installer-v2.11.2.tgz>Down</a></p><p>修改harbor.yml配置，持久化目录修改为glusterfs存储目录</p><pre tabindex=0><code>hostname: VIP
-data_volume: /data/harbor_data_volume 
-</code></pre><h4 id=安装>安装</h4><pre tabindex=0><code>./install.sh
-</code></pre><h3 id=keepalived>keepalived</h3><h4 id=安装-1>安装</h4><pre tabindex=0><code>apt install keepalived -y
-</code></pre><h4 id=配置>配置</h4><h5 id=check_portsh>check_port.sh</h5><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span></span></code></pre></td></tr></table></div></div><h3 id=harbor>harbor</h3><h4 id=安装包和配置>安装包和配置</h4><p>离线安装包 2.11.2 <a href=https://github.com/goharbor/harbor/releases/download/v2.11.2/harbor-online-installer-v2.11.2.tgz>Down</a></p><p>修改harbor.yml配置，持久化目录修改为glusterfs存储目录</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>hostname: VIP
+</span></span><span style=display:flex><span>data_volume: /data/harbor_data_volume 
+</span></span></code></pre></td></tr></table></div></div><h4 id=安装>安装</h4><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>./install.sh
+</span></span></code></pre></td></tr></table></div></div><h3 id=keepalived>keepalived</h3><h4 id=安装-1>安装</h4><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>apt install keepalived -y
+</span></span></code></pre></td></tr></table></div></div><h4 id=配置>配置</h4><h5 id=check_portsh>check_port.sh</h5><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
@@ -217,53 +228,99 @@ data_volume: /data/harbor_data_volume
 </span></span><span style=display:flex><span>    <span style=color:#8b949e;font-style:italic># 如果端口不可用，返回 1</span>
 </span></span><span style=display:flex><span>    exit <span style=color:#a5d6ff>1</span>
 </span></span><span style=display:flex><span><span style=color:#ff7b72>fi</span>
-</span></span></code></pre></td></tr></table></div></div><h5 id=master>Master</h5><pre tabindex=0><code>vrrp_script chk_5000 {
-    script &#34;/etc/keepalived/check_port.sh&#34;
-    interval 2
-    weight -20
-}
-
-vrrp_instance VI_1 {
-    state MASTER
-    interface ens192
-    virtual_router_id 51
-    priority 100
-    advert_int 1
-    authentication {
-        auth_type PASS
-        auth_pass xxxxxx
-    }
-    virtual_ipaddress {
-        10.1.1.15
-    }
-    track_script {
-        chk_5000
-    }		
-}
-</code></pre><h5 id=backup>BACKUP</h5><pre tabindex=0><code>vrrp_script chk_5000 {
-    script &#34;/etc/keepalived/check_port.sh&#34;
-    interval 2
-    weight -20
-}
-
-vrrp_instance VI_1 {
-    state BACKUP
-    interface ens192
-    virtual_router_id 51
-    priority 90
-    advert_int 1
-    authentication {
-        auth_type PASS
-        auth_pass xxxxxx
-    }
-    virtual_ipaddress {
-        10.1.1.15
-    }
-    track_script {
-        chk_5000
-    }
-}
-</code></pre><h2 id=测试>测试</h2><h3 id=手动关闭master节点harbor观察服务是否异常>手动关闭MASTER节点harbor，观察服务是否异常</h3><p>master节点手动关闭harbor服务</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
+</span></span></code></pre></td></tr></table></div></div><h5 id=master>Master</h5><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">23
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>vrrp_script chk_5000 <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>    script <span style=color:#a5d6ff>&#34;/etc/keepalived/check_port.sh&#34;</span>
+</span></span><span style=display:flex><span>    interval <span style=color:#a5d6ff>2</span>
+</span></span><span style=display:flex><span>    weight -20
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>vrrp_instance VI_1 <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>    state MASTER
+</span></span><span style=display:flex><span>    interface ens192
+</span></span><span style=display:flex><span>    virtual_router_id <span style=color:#a5d6ff>51</span>
+</span></span><span style=display:flex><span>    priority <span style=color:#a5d6ff>100</span>
+</span></span><span style=display:flex><span>    advert_int <span style=color:#a5d6ff>1</span>
+</span></span><span style=display:flex><span>    authentication <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        auth_type PASS
+</span></span><span style=display:flex><span>        auth_pass xxxxxx
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>    virtual_ipaddress <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        10.1.1.15
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>    track_script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        chk_5000
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>		
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>}</span>
+</span></span></code></pre></td></tr></table></div></div><h5 id=backup>BACKUP</h5><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">23
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>vrrp_script chk_5000 <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>    script <span style=color:#a5d6ff>&#34;/etc/keepalived/check_port.sh&#34;</span>
+</span></span><span style=display:flex><span>    interval <span style=color:#a5d6ff>2</span>
+</span></span><span style=display:flex><span>    weight -20
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>vrrp_instance VI_1 <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>    state BACKUP
+</span></span><span style=display:flex><span>    interface ens192
+</span></span><span style=display:flex><span>    virtual_router_id <span style=color:#a5d6ff>51</span>
+</span></span><span style=display:flex><span>    priority <span style=color:#a5d6ff>90</span>
+</span></span><span style=display:flex><span>    advert_int <span style=color:#a5d6ff>1</span>
+</span></span><span style=display:flex><span>    authentication <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        auth_type PASS
+</span></span><span style=display:flex><span>        auth_pass xxxxxx
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>    virtual_ipaddress <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        10.1.1.15
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span>    track_script <span style=color:#ff7b72;font-weight:700>{</span>
+</span></span><span style=display:flex><span>        chk_5000
+</span></span><span style=display:flex><span>    <span style=color:#ff7b72;font-weight:700>}</span>
+</span></span><span style=display:flex><span><span style=color:#ff7b72;font-weight:700>}</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=测试>测试</h2><h3 id=手动关闭master节点harbor观察服务是否异常>手动关闭MASTER节点harbor，观察服务是否异常</h3><p>master节点手动关闭harbor服务</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
 </span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>docker-compose down
 </span></span></code></pre></td></tr></table></div></div><p>观察vip是否漂移到backup节点</p><div class=highlight><div style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#737679">2
